@@ -1,0 +1,27 @@
+# 房间模板：客厅（整高房间，放在前排正中，大门开在它的南墙）
+name: 客厅
+icon: sofa
+kind: tall
+size: [10, 11]
+floor: wood
+doors: {n: 0}
+entrance: 2.6
+label: [-0.8, "s-2.2"]
+furniture:
+  - {type: rug, x: -0.8, z: 1.6, w: 4.6, d: 3.4, color: "#d29a3c"}
+  - {type: sofa, x: -0.8, z: 0.25, w: 3.6, d: 1.1, face: s, color: "#d4a03a"}
+  - {type: coffee_table, x: -0.8, z: 2.0, w: 1.8, d: 0.9}
+  - {type: desk, x: "w+0.55", z: -2.9, w: 1.6, d: 0.8, rot: 90, monitor: true}
+  - {type: chair, x: "w+1.45", z: -2.9, face: w}
+  - {type: lamp, x: "e-0.7", z: -0.3}
+  - {type: plant, x: "e-0.6", z: "n+0.6"}
+  - {type: shelf, x: "e-0.4", z: -2.9, w: 0.6, d: 1.8, h: 1.4}
+  - {type: mat, x: 2.6, z: "s-0.6", w: 1.4, d: 0.7}
+  - {type: cat, x: 3.2, z: 0.5}
+spots:
+  sofa_a: {x: -1.7, z: 0.45, label: 沙发, face: s, pose: sit, tags: [sofa]}
+  sofa_b: {x: 0.1, z: 0.45, label: 沙发, face: s, pose: sit, tags: [sofa]}
+  pc:     {x: "w+1.45", z: -2.9, label: 家里的电脑, face: w, pose: sit, tags: [pc]}
+  water:  {x: "e-1.3", z: "n+0.75", label: 窗边的花, face: e, pose: stand, tags: [water]}
+  floor:  {x: 2.2, z: -3.2, label: 客厅, face: s, pose: stand, tags: [floor]}
+  pet:    {x: 2.2, z: 0.6, label: 猫窝边, face: e, pose: sit_floor, tags: [pet]}

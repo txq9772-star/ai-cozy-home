@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小窝 · 形象</title>
+<link rel="stylesheet" href="/web/style.css">
+<style>
+  html, body { overflow: auto; background: #eef0f6; }
+  #view { position: fixed; inset: 0; }
+  .bar { position: fixed; left: 12px; top: 12px; display: flex; gap: 8px; flex-wrap: wrap; z-index: 2; }
+  .names { position: fixed; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; z-index: 2; }
+  .names .btn { background: #fff; }
+</style>
+<script type="importmap">
+{"imports": {"three": "/web/vendor/three/three.module.js", "three/addons/": "/web/vendor/three/addons/"}}
+</script>
+</head>
+<body>
+<div id="view"></div>
+<div class="bar">
+  <a class="pill" href="/" style="text-decoration:none;color:inherit">⌂ 回小窝</a>
+  <button class="pill" id="pose">姿势：站</button>
+  <button class="pill" id="spin">转动：开</button>
+</div>
+<div class="names" id="names"></div>
+<div class="toast hidden" id="toast"></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { buildAvatar, exportGlb } from '/web/js/avatar.js';
+import { loadModelAvatar, modelUrl } from '/web/js/model.js';
+import { api, toast } from '/web/js/util.js';
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#eef0f6');
+const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight('#ffffff', '#b8b4c8', 1.8));
+const sun = new THREE.DirectionalLight('#fff4e4', 2.2); sun.position.set(3, 6, 5); sun.castShadow = true; scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 40), new THREE.MeshStandardMaterial({ color: '#dcd8e8' }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const { residents } = await api('/api/state');
+const list = residents.map((r, i) => {
+  const a = buildAvatar(r.avatar || {}, r.color);
+  const x = (i - (residents.length - 1) / 2) * 1.3;
+  a.root.position.x = x;
+  scene.add(a.root);
+  return { r, a, x, hasModel: false };
+});
+await Promise.all(list.map(async (e) => {
+  if (!e.r.model) return;
+  try {
+    const m = await loadModelAvatar(modelUrl(e.r.model), e.r.avatar || {}, e.r.color);
+    scene.remove(e.a.root);
+    m.root.position.x = e.x;
+    m.root.rotation.y = e.a.root.rotation.y;
+    scene.add(m.root);
+    e.a = m; e.hasModel = true;
+  } catch (err) {
+    console.warn('模型加载失败，继续用程序小人', e.r.model, err);
+  }
+}));
+const names = document.getElementById('names');
+function download(url, filename) {
+  const link = document.createElement('a');
+  link.href = url; link.download = filename;
+  document.body.appendChild(link); link.click(); link.remove();
+}
+for (const e of list) {
+  const { r } = e;
+  const b = document.createElement('button');
+  b.className = 'btn'; b.style.borderColor = r.color;
+  b.textContent = `导出 ${r.name}.glb`;
+  b.onclick = async () => {
+    if (e.hasModel) download(modelUrl(r.model), `${r.name}.glb`);
+    else await exportGlb(r.avatar || {}, r.name, r.color);
+    toast(`已导出 ${r.name}.glb`);
+  };
+  names.appendChild(b);
+}
+const W = Math.max(3, residents.length * 1.3);
+controls.target.set(0, 0.8, 0);
+camera.position.set(0, 1.4, W * 1.55 + 1);
+const poses = ['stand', 'walk', 'sit', 'sit_floor', 'lie'];
+const poseName = { stand: '站', walk: '走', sit: '坐椅子', sit_floor: '坐地上', lie: '躺' };
+let pi = 0, spin = true;
+document.getElementById('pose').onclick = (e) => { pi = (pi + 1) % poses.length; e.target.textContent = `姿势：${poseName[poses[pi]]}`; };
+document.getElementById('spin').onclick = (e) => { spin = !spin; e.target.textContent = `转动：${spin ? '开' : '关'}`; };
+function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const timer = new THREE.Timer();
+renderer.setAnimationLoop(() => {
+  timer.update();
+  const dt = Math.min(timer.getDelta(), 0.1);
+  for (const { a } of list) {
+    const p = poses[pi];
+    a.setWalking(p === 'walk'); a.setPose(p === 'walk' ? 'stand' : p); a.setAsleep(p === 'lie');
+    if (spin) a.root.rotation.y += dt * 0.6;
+    a.update(dt);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+window.__av = { list, camera, controls };
+</script>
+</body>
+</html>

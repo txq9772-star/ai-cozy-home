@@ -1,0 +1,26 @@
+# 房间模板：卧室。每个住户自动生成一间，不需要在 home.yaml 里写。
+# 坐标是相对房间中心的偏移（x 向右、z 向前/朝屏幕），也可以贴墙写："n+0.5" = 离北墙 0.5，"s-1" / "w+0.3" / "e-0.3" 同理。
+# 模板按「放在客厅左边」的朝向来写，放到右边时会自动左右镜像（卧室不镜像）。
+# 字段说明见 README「房间模板」一节。
+name: "{owner}的卧室"
+icon: bed
+kind: bedroom
+size: [7, 7]
+floor: wood
+doors: {s: 0.4}
+label: [0, "s-3.5"]
+furniture:
+  - {type: bed, x: -1.7, z: "n+1.6", w: 2.0, d: 3.0, color: "{color}"}
+  - {type: desk, x: 1.9, z: "n+0.55", w: 2.0, d: 0.9, monitor: true}
+  - {type: chair, x: 1.9, z: "n+1.55", face: n}
+  - {type: shelf, x: "e-0.35", z: "s-2.4", w: 0.6, d: 1.8, h: 1.7}
+  - {type: rug, x: 0.8, z: "s-2.6", w: 2.4, d: 1.8, color: "#c9b8d8"}
+  - {type: lamp, x: "w+0.5", z: "s-3.2"}
+spots:
+  bed:    {x: -1.7, z: "n+2.0", label: 床上, face: s, pose: lie, tags: [bed]}
+  desk:   {x: 1.9, z: "n+1.65", label: 书桌前, face: n, pose: sit, tags: [desk]}
+  window: {x: 0.1, z: "n+0.8", label: 窗边, face: n, pose: stand, tags: [window]}
+  rug:    {x: 0.8, z: "s-2.6", label: 地毯上, face: s, pose: sit_floor, tags: [rug]}
+  yoga:   {x: 0.8, z: "s-2.3", label: 地毯边, face: s, pose: stand, tags: [yoga]}
+  tidy:   {x: "e-1.1", z: "s-2.4", label: 架子前, face: e, pose: stand, tags: [tidyroom]}
+  guest:  {x: -0.2, z: "s-1.5", label: 门口, face: n, pose: stand, tags: [guest]}

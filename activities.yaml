@@ -1,0 +1,403 @@
+# 住户会做的事。一条一个，加新的直接往下写。
+#   label   页面上显示的「正在做什么」
+#   spots   去哪做：房间模板里 spot 的 tags。卧室里的位置只有主人自己会去
+#   source  要不要刷到内容：bilibili / rss / shelf，不写 = 不需要内容
+#   app     用什么（写进动态，比如「用Bilibili」）
+#   text    动态的写法：{place} 地点，{app} 应用，{title} 标题，{site} 来源名
+#   think   true = 这件事会调用模型写感想（还要再乘 life.think_chance）；false = 只记动态，不花额度
+#   weight  没写进 likes 时的默认权重（不写按 1）
+#   daytime true = 只有白天（7 点到 19 点）才去
+#   together true = 要拉上另一个醒着的住户，两人各占一个位置；text 里 {with} 是对方名字
+#   festival true = 只有节日那天才做；text 里 {festival} 是节日名字
+#   weather  只在这种天气做：clear / cloudy / rain
+#   emote   头顶的小图标；anim 身体动作；prop 手里拿的东西（都在 web/js/people.js）
+#   roam    true = 做的时候在屋里走来走去
+#   visit   true = 去别人房间串门，spots 不用写
+#   gives   做这件事补多少需求：energy 精力、hunger 饱腹、social 社交、fun 开心。缺得越多越想做
+# 用到户外位置的活动下雨时不会去。
+# 住户配置里的 likes 是各自的偏好权重，没写的活动按 weight 算。
+
+video:
+  label: 刷视频
+  spots: [sofa, beanbag, rug]
+  source: bilibili
+  app: Bilibili
+  text: "在{place}用{app}，看了《{title}》"
+  think: true
+  emote: "📱"
+  anim: look
+  prop: phone
+  gives: {fun: 16, energy: -2}
+
+tv:
+  label: 看电视
+  spots: [tv]
+  source: bilibili
+  text: "在{place}看电视，在放《{title}》"
+  think: true
+  emote: "📺"
+  anim: look
+  gives: {fun: 18}
+
+browse:
+  label: 逛帖子
+  spots: [pc, desk]
+  source: rss
+  app: 浏览器
+  text: "在{place}逛{site}，读了《{title}》"
+  think: true
+  emote: "💻"
+  anim: type
+  gives: {fun: 10, energy: -3}
+
+read:
+  label: 看书
+  spots: [reading, desk, bed]
+  source: shelf
+  text: "在{place}翻了几页《{title}》"
+  think: true
+  emote: "📖"
+  anim: read
+  prop: book
+  gives: {fun: 12}
+
+cook:
+  label: 做饭
+  spots: [stove]
+  text: "在{place}做了点吃的"
+  think: true
+  emote: "🍳"
+  anim: stir
+  prop: spatula
+  gives: {hunger: 40, energy: -4}
+
+snack:
+  label: 找吃的
+  spots: [fridge, table]
+  text: "在{place}找了点吃的"
+  think: false
+  emote: "🍙"
+  anim: sip
+  gives: {hunger: 30}
+
+tidy:
+  label: 收拾东西
+  spots: [boxes]
+  text: "在{place}收拾了一会儿"
+  think: false
+  emote: "📦"
+  anim: tidy
+  gives: {fun: 3, energy: -5}
+
+daze:
+  label: 发呆
+  spots: [window, rug]
+  text: "在{place}发了会儿呆"
+  think: false
+  emote: "☁️"
+  anim: doze
+  gives: {energy: 8}
+
+# ---------- 屋里的小事
+tea:
+  label: 喝点东西
+  spots: [sofa, table, window]
+  text: "在{place}泡了杯喝的"
+  think: false
+  emote: "🍵"
+  anim: sip
+  prop: cup
+  gives: {energy: 10, hunger: 6}
+
+nap:
+  label: 打个盹
+  spots: [sofa, beanbag]
+  text: "在{place}眯了一会儿"
+  think: false
+  emote: "💤"
+  anim: doze
+  weight: 0.6
+  gives: {energy: 28}
+
+stretch:
+  label: 拉伸
+  spots: [yoga]
+  text: "在{place}拉伸了一会儿"
+  think: false
+  emote: "🧘"
+  anim: stretch
+  gives: {energy: 10, fun: 5}
+
+dance:
+  label: 跟着音乐晃
+  spots: [yoga, floor]
+  text: "在{place}跟着音乐晃了一会儿"
+  think: false
+  emote: "🎵"
+  anim: dance
+  weight: 0.5
+  gives: {fun: 18, energy: -6}
+
+sweep:
+  label: 扫地
+  spots: [floor]
+  text: "把{place}扫了一遍"
+  think: false
+  emote: "🧹"
+  anim: sweep
+  prop: broom
+  roam: true
+  weight: 0.6
+  gives: {energy: -5}
+
+pace:
+  label: 走来走去想事情
+  spots: [floor]
+  text: "在{place}走来走去想了会儿事"
+  think: false
+  emote: "💭"
+  roam: true
+  weight: 0.5
+  gives: {fun: 4}
+
+wash:
+  label: 洗碗
+  spots: [sink]
+  text: "在{place}把碗洗了"
+  think: false
+  emote: "🫧"
+  anim: wash
+  weight: 0.6
+  gives: {energy: -3}
+
+water:
+  label: 浇花
+  spots: [water]
+  text: "去{place}浇了浇花"
+  think: false
+  emote: "💧"
+  anim: water
+  prop: can
+  weight: 0.8
+  gives: {fun: 6}
+
+tidy_room:
+  label: 整理房间
+  spots: [tidyroom]
+  text: "把{place}整理了一下"
+  think: false
+  emote: "🧺"
+  anim: tidy
+  weight: 0.6
+  gives: {fun: 4, energy: -3}
+
+paint:
+  label: 画画
+  spots: [easel]
+  text: "在{place}画了一会儿"
+  think: true
+  emote: "🎨"
+  anim: paint
+  prop: brush
+  weight: 0.8
+  gives: {fun: 20, energy: -3}
+
+piano:
+  label: 弹琴
+  spots: [piano]
+  text: "在{place}弹了几段"
+  think: true
+  emote: "🎹"
+  anim: piano
+  weight: 0.8
+  gives: {fun: 20}
+
+pet_cat:
+  label: 逗猫
+  spots: [pet]
+  text: "在{place}逗了会儿猫"
+  think: false
+  emote: "🐱"
+  anim: pet
+  gives: {fun: 16, social: 8}
+
+rain_watch:
+  label: 看雨
+  spots: [window]
+  text: "在{place}看了会儿雨"
+  think: false
+  emote: "🌧️"
+  anim: look
+  prop: cup
+  weight: 2.5
+  weather: rain
+  gives: {energy: 6, fun: 6}
+
+visit:
+  label: 串门
+  visit: true
+  text: "去了{place}串门"
+  think: false
+  emote: "🚪"
+  anim: wave
+  weight: 0.8
+  gives: {social: 28, fun: 6}
+
+# ---------- 游乐场
+swing:
+  label: 荡秋千
+  spots: [swing]
+  text: "在{place}荡了一会儿"
+  think: true
+  weight: 0.5
+  daytime: true
+  emote: "😆"
+  gives: {fun: 22, energy: -5}
+
+slide:
+  label: 玩滑梯
+  spots: [slide]
+  text: "在{place}滑了好几趟"
+  think: false
+  weight: 0.4
+  daytime: true
+  emote: "😆"
+  gives: {fun: 20, energy: -6}
+
+carousel:
+  label: 坐转盘
+  spots: [carousel]
+  text: "坐在{place}上转了几圈"
+  think: false
+  weight: 0.4
+  daytime: true
+  emote: "😵"
+  gives: {fun: 18, energy: -3}
+
+sand:
+  label: 玩沙子
+  spots: [sand]
+  text: "在{place}堆了个小沙堆"
+  think: false
+  weight: 0.4
+  daytime: true
+  emote: "🏖️"
+  anim: tidy
+  gives: {fun: 16, energy: -3}
+
+# ---------- 湖边
+feed_ducks:
+  label: 喂鸭子
+  spots: [lake_feed]
+  text: "在{place}喂了鸭子"
+  think: true
+  weight: 0.9
+  daytime: true
+  emote: "🦆"
+  anim: feed
+  prop: bag
+  gives: {fun: 22, social: 6}
+
+fishing:
+  label: 钓鱼
+  spots: [fish]
+  text: "在{place}坐着钓了会儿鱼"
+  think: true
+  weight: 0.7
+  daytime: true
+  emote: "🎣"
+  anim: fish
+  prop: rod
+  gives: {fun: 16, energy: 6}
+
+lake_walk:
+  label: 沿湖走走
+  spots: [lake_path]
+  text: "沿着{place}走了一圈"
+  think: false
+  weight: 0.7
+  daytime: true
+  emote: "🌿"
+  roam: true
+  gives: {fun: 12, energy: 4}
+
+# ---------- 两个人一起
+seesaw:
+  label: 玩跷跷板
+  spots: [seesaw]
+  text: "和{with}在{place}玩了一会儿"
+  think: true
+  weight: 0.5
+  daytime: true
+  together: true
+  emote: "😆"
+  gives: {fun: 22, social: 22, energy: -5}
+
+swing_pair:
+  label: 一起荡秋千
+  spots: [swing]
+  text: "和{with}在{place}比谁荡得高"
+  think: true
+  weight: 0.5
+  daytime: true
+  together: true
+  emote: "😆"
+  gives: {fun: 22, social: 22, energy: -5}
+
+bench_chat:
+  label: 坐着聊天
+  spots: [bench]
+  text: "和{with}在{place}坐着聊了会儿"
+  think: true
+  weight: 0.6
+  daytime: true
+  together: true
+  emote: "💬"
+  anim: nod
+  gives: {social: 30, fun: 8}
+
+sofa_chat:
+  label: 窝着聊天
+  spots: [sofa]
+  text: "和{with}在{place}窝着聊了会儿"
+  think: true
+  weight: 0.8
+  together: true
+  emote: "💬"
+  anim: nod
+  gives: {social: 30, fun: 8}
+
+chess:
+  label: 下棋
+  spots: [chess]
+  text: "和{with}在{place}下了一盘棋"
+  think: true
+  weight: 0.7
+  together: true
+  emote: "♟️"
+  anim: chess
+  gives: {social: 22, fun: 16}
+
+game:
+  label: 打游戏
+  spots: [tv]
+  text: "和{with}在{place}打了几局游戏"
+  think: true
+  weight: 0.7
+  together: true
+  emote: "🎮"
+  anim: game
+  prop: pad
+  gives: {social: 22, fun: 24, energy: -4}
+
+# ---------- 只在节日那天
+decorate:
+  label: 布置屋子
+  spots: [sofa]
+  text: "和{with}为了{festival}把{place}布置了一下"
+  think: true
+  weight: 3
+  together: true
+  festival: true
+  emote: "🎀"
+  gives: {social: 18, fun: 18}

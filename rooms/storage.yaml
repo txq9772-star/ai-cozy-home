@@ -1,0 +1,14 @@
+# 房间模板：储物间（半高房间）
+name: 储物间
+icon: box
+kind: half
+size: [9, 5.5]
+floor: concrete
+doors: {e: 0, n: -2.0}
+label: [0.5, "s-0.8"]
+furniture:
+  - {type: boxes, x: 0.7, z: "n+2.1"}
+  - {type: boxes, x: -2.7, z: "s-1.4"}
+  - {type: shelf, x: "w+0.4", z: "n+1.5", w: 0.6, d: 2.2, h: 1.9}
+spots:
+  boxes: {x: 1.1, z: "n+3.5", label: 纸箱堆旁, face: n, pose: stand, tags: [boxes]}

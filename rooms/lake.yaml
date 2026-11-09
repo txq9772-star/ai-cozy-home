@@ -1,0 +1,23 @@
+# 户外模板：湖。接在游乐场南边，湖里的鸭子和天鹅写在 web/js/furniture.js 的 lake 里。
+name: 湖边
+icon: lake
+kind: outdoor
+size: [30, 18]
+label: [-10, "n+0.9"]
+furniture:
+  - {type: lake, x: 0, z: 1, w: 22, d: 12}
+  - {type: dock, x: 4, z: -3.8, len: 3.2}
+  - {type: bench, x: -9, z: -7, face: s}
+  - {type: bench, x: 9.5, z: -7, face: s}
+  - {type: lamp_post, x: -6, z: -7.6}
+  - {type: lamp_post, x: 7, z: -7.6}
+spots:
+  feed_a:  {x: -4, z: -5.9, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
+  feed_b:  {x: -1.2, z: -5.9, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
+  dock:    {x: 4, z: -2.9, label: 栈桥, face: s, pose: sit_floor, tags: [fish]}
+  walk_a:  {x: 12.5, z: 1, label: 湖岸, face: w, pose: stand, tags: [lake_path]}
+  walk_b:  {x: -12.5, z: 1, label: 湖岸, face: e, pose: stand, tags: [lake_path]}
+  bench_a: {x: -9.6, z: -6.9, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  bench_b: {x: -8.4, z: -6.9, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  bench_c: {x: 8.9, z: -6.9, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  bench_d: {x: 10.1, z: -6.9, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}

@@ -1,0 +1,24 @@
+# 房间模板：书房（半高房间，排在前排上半格或下半格）
+name: 书房
+icon: books
+kind: half
+size: [9, 5.5]
+floor: wood2
+doors: {n: 0.5, e: 0}
+label: [0, 0.6]
+furniture:
+  - {type: desk, x: -3.4, z: "n+0.5", w: 1.5, d: 0.8, monitor: true}
+  - {type: desk, x: -1.7, z: "n+0.5", w: 1.5, d: 0.8, monitor: true}
+  - {type: desk, x: 2.6, z: "n+0.5", w: 1.5, d: 0.8, monitor: true}
+  - {type: chair, x: -3.4, z: "n+1.4", face: n}
+  - {type: chair, x: -1.7, z: "n+1.4", face: n}
+  - {type: chair, x: 2.6, z: "n+1.4", face: n}
+  - {type: bookshelf, x: "w+0.35", z: 0.85, w: 0.6, d: 2.4, h: 2.0}
+  - {type: armchair, x: -2.8, z: "s-1.1", face: s, color: "#7b5ea7"}
+  - {type: cabinet, x: 1.9, z: "s-0.4", w: 3.0, d: 0.7, h: 0.9}
+  - {type: plant, x: "e-0.45", z: "n+1.0"}
+spots:
+  desk_1:  {x: -3.4, z: "n+1.35", label: 电脑桌, face: n, pose: sit, tags: [pc]}
+  desk_2:  {x: -1.7, z: "n+1.35", label: 电脑桌, face: n, pose: sit, tags: [pc]}
+  desk_3:  {x: 2.6, z: "n+1.35", label: 电脑桌, face: n, pose: sit, tags: [pc]}
+  reading: {x: -2.8, z: "s-1.2", label: 书架边, face: s, pose: sit, tags: [reading]}

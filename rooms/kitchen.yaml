@@ -1,0 +1,23 @@
+# 房间模板：厨房（半高房间）。e 门用于挨着客厅时，n 门用于不挨着客厅、从上半格进出时
+name: 厨房
+icon: pot
+kind: half
+size: [9, 5.5]
+floor: tile
+doors: {e: 0, n: 2.6}
+label: [0, -0.4]
+furniture:
+  - {type: fridge, x: "w+0.6", z: "n+0.55", w: 1.0, d: 0.9, h: 2.1}
+  - {type: counter, x: -0.9, z: "n+0.45", w: 4.4, d: 0.8, stove_at: 0.8}
+  - {type: table, x: -0.7, z: 0.75, w: 2.2, d: 1.2}
+  - {type: chair, x: -0.7, z: "n+2.75", face: s}
+  - {type: chair, x: -1.3, z: 1.6, face: n}
+  - {type: chair, x: -0.1, z: 1.6, face: n}
+  - {type: plant, x: "w+0.6", z: "s-0.6"}
+spots:
+  stove:  {x: -0.1, z: "n+1.25", label: 灶台, face: n, pose: stand, tags: [stove]}
+  fridge: {x: "w+1.0", z: "n+1.6", label: 冰箱前, face: n, pose: stand, tags: [fridge]}
+  table:  {x: -0.7, z: "n+2.75", label: 餐桌, face: s, pose: sit, tags: [table]}
+  table_b: {x: -1.3, z: 1.55, label: 餐桌, face: n, pose: sit, tags: [table]}
+  table_c: {x: -0.1, z: 1.55, label: 餐桌, face: n, pose: sit, tags: [table]}
+  sink:    {x: -2.6, z: "n+1.25", label: 水槽, face: n, pose: stand, tags: [sink]}

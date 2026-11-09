@@ -1,0 +1,20 @@
+# 房间模板：娱乐室（半高房间）
+name: 娱乐室
+icon: game
+kind: half
+size: [9, 5.5]
+floor: carpet
+doors: {n: 3.1, e: 0}
+label: [0.5, "s-0.6"]
+furniture:
+  - {type: rug, x: -1.0, z: "n+2.0", w: 4.2, d: 3.0, color: "#7a9a3a"}
+  - {type: tv, x: -1.0, z: "n+0.4", w: 2.6}
+  - {type: sofa, x: -1.0, z: "n+3.35", w: 3.0, d: 1.0, face: n, color: "#6f8f2e"}
+  - {type: beanbag, x: 2.5, z: "n+4.3", color: "#c0504a"}
+  - {type: beanbag, x: -3.5, z: "n+4.4", color: "#c0504a"}
+  - {type: plant, x: "w+0.5", z: "n+0.6"}
+spots:
+  tv_a:   {x: -0.3, z: "n+3.15", label: 电视前的沙发, face: n, pose: sit, tags: [tv]}
+  tv_b:   {x: -1.7, z: "n+3.15", label: 电视前的沙发, face: n, pose: sit, tags: [tv]}
+  bean_a: {x: 2.5, z: "n+4.3", label: 懒人沙发, face: s, pose: sit_low, tags: [beanbag]}
+  bean_b: {x: -3.5, z: "n+4.4", label: 懒人沙发, face: s, pose: sit_low, tags: [beanbag]}

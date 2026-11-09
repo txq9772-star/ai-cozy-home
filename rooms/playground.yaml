@@ -1,0 +1,37 @@
+# 户外模板：游乐场。放在大门外（home.yaml 的 outdoors 列表），没有墙和屋顶。
+# 坐标相对场地中心，x 向东、z 向南，北边紧贴房子。
+# spot 的 ride / seat 指向 furniture 的 ride，住户到了就跟着设施动。
+name: 游乐场
+icon: park
+kind: outdoor
+size: [24, 16]
+label: [0, "s-1.4"]
+furniture:
+  - {type: rug, x: -7, z: -2.2, w: 6.6, d: 4.2, color: "#b8574a"}
+  - {type: swing, x: -7, z: -2.2, ride: swing1}
+  - {type: rug, x: -7, z: 4.4, w: 6, d: 2.6, color: "#6a8fb8"}
+  - {type: seesaw, x: -7, z: 4.4, ride: seesaw1}
+  - {type: rug, x: 8, z: -3, w: 4.4, d: 6.8, color: "#7fa06a"}
+  - {type: slide, x: 8, z: -3.2, ride: slide1}
+  - {type: carousel, x: 0, z: 3, ride: carousel1}
+  - {type: sandbox, x: 7.6, z: 4.6, w: 4.4, d: 3.4}
+  - {type: bench, x: -1.6, z: -5.6, face: s}
+  - {type: lamp_post, x: "w+0.6", z: "s-0.6"}
+  - {type: lamp_post, x: "e-0.6", z: "s-0.6"}
+  - {type: lamp_post, x: 0.6, z: -4.4}
+  - {type: fence, x: 0, z: "s-0.05", len: 24, gap_at: 0, gap: 2.4}
+  - {type: fence, x: "w+0.05", z: 0, len: 16, rot: 90}
+  - {type: fence, x: "e-0.05", z: 0, len: 16, rot: 90}
+spots:
+  swing_a:    {x: -8,   z: -2.2, label: 秋千, face: s, pose: sit, tags: [swing], ride: swing1, seat: 0}
+  swing_b:    {x: -6,   z: -2.2, label: 秋千, face: s, pose: sit, tags: [swing], ride: swing1, seat: 1}
+  seesaw_a:   {x: -8.7, z: 4.4,  label: 跷跷板, face: e, pose: sit, tags: [seesaw], ride: seesaw1, seat: 0}
+  seesaw_b:   {x: -5.3, z: 4.4,  label: 跷跷板, face: w, pose: sit, tags: [seesaw], ride: seesaw1, seat: 1}
+  slide_top:  {x: 8,    z: -0.6, label: 滑梯, face: s, pose: stand, tags: [slide], ride: slide1, seat: 0}
+  carousel_a: {x: 0,    z: 4.15, label: 转盘, face: e, pose: sit, tags: [carousel], ride: carousel1, seat: 0}
+  carousel_b: {x: 1,    z: 2.4,  label: 转盘, face: e, pose: sit, tags: [carousel], ride: carousel1, seat: 1}
+  carousel_c: {x: -1,   z: 2.4,  label: 转盘, face: e, pose: sit, tags: [carousel], ride: carousel1, seat: 2}
+  sand_a:     {x: 6.8,  z: 4.8,  label: 沙坑, face: e, pose: sit_floor, tags: [sand]}
+  sand_b:     {x: 8.6,  z: 4.8,  label: 沙坑, face: w, pose: sit_floor, tags: [sand]}
+  bench_a:    {x: -2.2, z: -5.5, label: 长椅, face: s, pose: sit, tags: [bench]}
+  bench_b:    {x: -1,   z: -5.5, label: 长椅, face: s, pose: sit, tags: [bench]}

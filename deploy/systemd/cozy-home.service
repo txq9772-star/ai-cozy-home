@@ -1,0 +1,22 @@
+# 小窝开机自启（Ubuntu）。
+# 1. 把下面的 YOUR_USER 换成你登录 claude / codex 的那个用户，/home/YOUR_USER/ai-cozy-home 换成实际路径
+# 2. sudo cp deploy/systemd/cozy-home.service /etc/systemd/system/
+# 3. sudo systemctl daemon-reload && sudo systemctl enable --now cozy-home
+# 4. 看日志：journalctl -u cozy-home -f
+# 订阅接入要用这个用户的登录信息（~/.claude、~/.codex），所以不要用 root 跑。
+[Unit]
+Description=ai-cozy-home
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/ai-cozy-home
+EnvironmentFile=-/home/YOUR_USER/.config/cozy-home.env
+Environment=PATH=/home/YOUR_USER/.local/bin:/home/YOUR_USER/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/YOUR_USER/ai-cozy-home/.venv/bin/python home/server.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

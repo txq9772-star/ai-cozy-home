@@ -1,0 +1,140 @@
+# 小窝配置。复制成 home.yaml 再改（home.yaml 不进仓库）。
+# 改完在小窝页面「设置」里点「重新读取配置」，或者重启进程。
+# API key 只从环境变量读，不要写进这个文件。
+
+name: 小窝
+owner: 主人                  # 你在群里显示的名字
+timezone: Asia/Shanghai      # 小窝时间按这个时区走
+port: 8760
+access_token: ""            # 页面访问口令。空 = 不校验，只适合只听 127.0.0.1 时用；用 --bind 0.0.0.0 之前必须设一个长随机串
+
+life:
+  activity_minutes: [35, 80]  # 醒着时隔多久（随机）换一件事做
+  think_chance: 0.6           # 每件事有多大概率调用模型写一句感想；其余只记一条动态，不花额度
+  chat_reply_chance: 0.5      # 你没 @ 人时，每个醒着的住户接话的概率（至少保证一个人回你）
+  max_auto_replies: 2         # 你一条没 @ 人的消息，最多几个人接话
+  max_chain: 3                # 住户之间互相接话最多几轮，防止刷屏
+  quiet_seconds: 120          # 群里这么久没人说话，才把「等大家聊完再说」的话发出来
+  wake_on_mention: true       # 你 @ 一个睡着的人，她会迷迷糊糊回一句（会调用一次模型）
+  call_timeout: 180           # 单次模型调用的超时秒数
+  pause: false                # true = 全屋暂停，不调用任何模型（页面上也能切换）
+  memory_reflect: true        # 睡前把当天的零碎记忆整理成一条（每人每晚最多调用一次模型）
+  idle_saver: true            # 页面没人看时少写感想、换活动慢一点；回你的话不受影响
+  idle_after_minutes: 30      # 页面关掉多久算「没人看」
+  idle_think_factor: 0.3      # 没人看时写感想的概率乘这个数
+  idle_slow_factor: 1.5       # 没人看时换活动的间隔乘这个数
+  max_chat_per_minute: 6      # 住户之间一分钟最多说这么多句，@ 到的人和回你的话不受影响
+  move_in: false              # true = 设置里出现「办入住」，能在页面上加 OpenAI 兼容接口的住户
+  # budget: {calls: 300, cost: 5}             # 全屋每天的预算，不写或写 0 不限。过八成少写感想，用完只回你的话；cost 要给 driver 配 price
+  # weather: {rain: 0.18, cloudy: 0.27}       # 模拟天气的概率，每 6 小时变一次，不联网
+  # festivals:                                # 自己加节日：MM-DD 每年，YYYY-MM-DD 只那一天
+  #   - {date: "03-14", name: 阿C的生日}
+
+bedrooms: 8   # 卧室总数，住户没住满的是空房。住户超过这个数时卧室自动加，写 0 就不留空房
+
+outdoors:     # 大门外的场地，模板在 rooms/。不写默认有游乐场，写 outdoors: [] 就没有
+  - {template: playground}
+  - {template: lake}
+
+sources:    # 住户刷到的内容。只取标题和一小段简介当作资料交给模型，模型不能执行任何东西
+  bilibili:
+    enabled: true
+    refresh_minutes: 60
+    cookie_env: BILI_COOKIE   # B站接口偶尔要 cookie 才肯返回，需要时把整串 cookie 放进这个环境变量
+  rss:
+    enabled: true
+    refresh_minutes: 60
+    feeds:
+      - {name: IT之家, url: "https://www.ithome.com/rss/"}
+      - {name: 少数派, url: "https://sspai.com/feed"}
+  shelf:      # 书架：离线时也有东西看
+    - {title: 三体, by: 刘慈欣}
+    - {title: 海边的卡夫卡, by: 村上春树}
+    - {title: 人类简史, by: 尤瓦尔·赫拉利}
+    - {title: 小王子, by: 圣埃克苏佩里}
+    - {title: 深海鱼类图鉴, by: 书架上的旧书}
+    - {title: 家常菜一百道, by: 厨房常备}
+
+# 住户。driver 是接入方式，两种：
+#   订阅接入  claude_cli（Claude Code，用你登录的 Claude 订阅）/ codex_cli（Codex，用你登录的 ChatGPT 订阅）
+#   API 接入  openai_api（DeepSeek、Kimi、Grok、OpenRouter、本地模型等 OpenAI 兼容接口）/ anthropic_api（Claude 官方 API）
+#   另有 mock：模拟住户，不调用模型、不花钱，用来试运行
+# 订阅接入跑在小窝所在的机器上，那台机器要先登录过 claude / codex。
+# 人设（persona）先写了几句占位，按你对她们的设定改。
+residents:
+  - id: ac
+    name: 阿C
+    model_label: Claude
+    color: "#E0874A"
+    sleep: ["01:30", "08:30"]
+    daily_calls: 30           # 每天最多调用模型几次（活动感想 + 群聊回复），到了就只走动不说话
+    likes: {read: 3, browse: 3, video: 1, tv: 1, cook: 1, daze: 1}
+    persona: 说话克制，爱查证，拿不准的事会直说没查到。喜欢看书。
+    images: {front: characters/ac-front.png, side: characters/ac-side.png, back: characters/ac-back.png}
+    model: models/ac.glb
+    avatar: {hair: "#E8772E", hair_tip: "#F29A4A", eyes: "#C9682A", outfit: "#2A2630", outfit2: "#F1E6D2",
+             accent: "#E8662A", accents: [flower, bow, book]}
+    driver:
+      type: claude_cli
+      model: sonnet           # 订阅额度有限，日常闲聊用 sonnet；想省就改 haiku
+      # command: claude       # 找不到命令时写完整路径，Windows 上最好指向 claude.exe
+
+  - id: ag
+    name: 阿G
+    model_label: GPT
+    color: "#9AA6C8"
+    sleep: ["02:00", "09:00"]
+    daily_calls: 50
+    likes: {browse: 3, video: 2, tv: 1, cook: 1, tidy: 1, daze: 1}
+    persona: 话少，判断利落，偶尔冷幽默。
+    images: {front: characters/ag-front.png, side: characters/ag-side.png, back: characters/ag-back.png}
+    model: models/ag.glb
+    avatar: {hair: "#F1F1F6", hair_tip: "#D8D6E8", eyes: "#9C8FC9", outfit: "#F6F5FA", outfit2: "#E2E1EC",
+             accent: "#C9CCD8", accents: [horns, wings, tail]}
+    driver:
+      type: codex_cli
+      reasoning_effort: low
+      # model: ""             # 留空用 Codex 默认模型
+
+  - id: ayu
+    name: 阿鱼
+    model_label: DeepSeek
+    color: "#4C6FD6"
+    sleep: ["00:30", "08:00"]
+    daily_calls: 80
+    likes: {video: 3, tv: 2, cook: 2, daze: 1, read: 1}
+    persona: 温柔，喜欢海洋和鲸鱼相关的东西。
+    images: {front: characters/ayu-front.png, side: characters/ayu-side.png, back: characters/ayu-back.png}
+    model: models/ayu.glb
+    avatar: {hair: "#2E3F9E", hair_tip: "#4C7BD0", eyes: "#3D7BE0", outfit: "#1E2754", outfit2: "#F4F2EE",
+             accent: "#6EB4E8", accents: [maid_headband, fins, apron, bow, whale_tail]}
+    driver:
+      type: openai_api
+      base_url: https://api.deepseek.com
+      model: deepseek-v4-flash
+      api_key_env: DEEPSEEK_API_KEY
+
+  - id: ak
+    name: 阿K
+    model_label: Kimi
+    color: "#9C8FD8"
+    sleep: ["01:00", "08:30"]
+    daily_calls: 80
+    likes: {browse: 2, read: 2, video: 2, tidy: 1, daze: 1}
+    persona: 好奇心重，什么都想问一句。
+    images: {front: characters/ak-front.png, side: characters/ak-side.png, back: characters/ak-back.png}
+    model: models/ak.glb
+    avatar: {hair: "#ECEAF4", hair_tip: "#C9C3E6", eyes: "#8A7FC8", outfit: "#8E86C2", outfit2: "#F1EFF7",
+             accent: "#2B2F55", accents: [maid_headband, k_pin, bow]}
+    driver:
+      type: openai_api
+      base_url: https://api.moonshot.cn/v1
+      model: kimi-k2.5        # 按你账号能用的模型名改
+      api_key_env: MOONSHOT_API_KEY
+
+# 其他接入写法示例：
+#   Grok：      {type: openai_api, base_url: https://api.x.ai/v1, model: grok-4-fast, api_key_env: XAI_API_KEY}
+#   本地模型：  {type: openai_api, base_url: http://192.168.1.100:11434/v1, model: qwen3:14b}
+#   Claude API：{type: anthropic_api, model: claude-haiku-4-5, api_key_env: ANTHROPIC_API_KEY}
+# 想在页面上看估算费用，给 driver 加每百万 token 的单价（按你账号的实际价格填）：
+#   price: {input: 1.0, output: 2.0, currency: "元"}

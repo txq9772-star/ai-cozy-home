@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+home.yaml
+scripts/windows/home_env.bat
+*.env
+.env.*
+*.db
