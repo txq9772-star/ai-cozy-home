@@ -13,7 +13,9 @@ function footprint(f) {
     case 'sandbox': return [(f.w || 4) / 2, -(f.d || 3.2) / 2, (f.d || 3.2) / 2];
     case 'bench': return [(f.w || 2.2) / 2, -0.35, 0.3];
     case 'lamp_post': return [0.12, -0.12, 0.12];
-    case 'lake': return [(f.w || 22) / 2 + 0.5, -(f.d || 12) / 2 - 0.3, (f.d || 12) / 2 + 0.3];
+    case 'lake': return [(f.w || 22) / 2 * 1.16 + 0.7, -(f.d || 12) / 2 - 0.3, (f.d || 12) / 2 * 1.16 + 0.7];
+    case 'tree_big': return [0.4, -0.4, 0.4];
+    case 'flowerbed': return [(f.w || 2) / 2, -(f.d || 0.8) / 2, (f.d || 0.8) / 2];
     case 'bed': case 'sofa': case 'table': case 'coffee_table': case 'desk': case 'cabinet': case 'fridge': case 'counter': case 'shelf': case 'bookshelf':
       return [(f.w || 1.6) / 2, -(f.d || 0.8) / 2, (f.d || 0.8) / 2];
     case 'armchair': return [0.55, -0.48, 0.48];
@@ -47,6 +49,7 @@ export class Grid {
     this.w = Math.ceil((this.x1 - this.x0) / CELL);
     this.h = Math.ceil((this.z1 - this.z0) / CELL);
     this.rects = obstacles(room);
+    this.parts = room.parts || null;
     this.blocked = new Uint8Array(this.w * this.h);
     for (let j = 0; j < this.h; j++) {
       for (let i = 0; i < this.w; i++) {
@@ -59,6 +62,10 @@ export class Grid {
   pos(i, j) { return [this.x0 + (i + 0.5) * CELL, this.z0 + (j + 0.5) * CELL]; }
 
   hits(x, z, pad = CLEAR) {
+    if (this.parts) {               // 人的四角都要在走廊里，这样几段走廊的接缝是通的
+      const inside = (a, b) => this.parts.some((p) => a > p[0] && a < p[2] && b > p[1] && b < p[3]);
+      if (!(inside(x - 0.25, z - 0.25) && inside(x + 0.25, z - 0.25) && inside(x - 0.25, z + 0.25) && inside(x + 0.25, z + 0.25))) return true;
+    }
     return this.rects.some((r) => x > r[0] - pad && x < r[2] + pad && z > r[1] - pad && z < r[3] + pad);
   }
 

@@ -8,6 +8,9 @@
         下半格挨着中间房间就开门进中间房间，不挨着就开门进同一列的上半格。
   两排宽度不一样时，窄的那排把房间拉宽补齐（家具按贴墙坐标跟着走）。
 
+回字形：卧室至少 6 间、除客厅外还有两间整高房间时用。北边一排卧室，东西两翼是两间整高房间，
+南排是公共房间，两端各一间卧室，中间一圈走廊围着庭院。
+
 模板按「放在中间房间左边」的朝向写，放到右边时左右镜像。
 """
 from __future__ import annotations
@@ -20,6 +23,7 @@ from typing import Any
 import yaml
 
 HALL_DEPTH = 2.0
+MIN_COURT = 8.0
 FRONT_DEPTH = 11.0
 DOOR_WIDTH = 1.6
 _ANCHOR = re.compile(r"^\s*([nsew])\s*([+-]\s*[\d.]+)?\s*$")
@@ -74,8 +78,26 @@ def _fill(v: Any, ctx: dict[str, str]) -> Any:
     return v
 
 
+def _flip_z(v: Any) -> Any:
+    if isinstance(v, (int, float)):
+        return -float(v)
+    m = _ANCHOR.match(str(v))
+    if not m:
+        return v
+    off = float((m.group(2) or "0").replace(" ", ""))
+    return f"{'s' if m.group(1) == 'n' else 'n'}{-off:+}"
+
+
+def _flip_face(face: Any) -> str:
+    return {"n": "s", "s": "n"}.get(str(face or "s"), str(face))
+
+
 def _place(tpl: dict[str, Any], room_id: str, rect: tuple[float, float, float, float], mirror: bool,
            ctx: dict[str, str], extra: dict[str, Any]) -> dict[str, Any]:
+    if extra.get("flip"):                # 南北翻转：门开在北边的卧室用
+        tpl = {**tpl, "label": [(tpl.get("label") or [0, 0])[0], _flip_z((tpl.get("label") or [0, 0])[1])],
+               "furniture": [{**f, "z": _flip_z(f.get("z", 0)), "face": _flip_face(f.get("face"))} for f in tpl.get("furniture") or []],
+               "spots": {k: {**v, "z": _flip_z(v.get("z", 0)), "face": _flip_face(v.get("face"))} for k, v in (tpl.get("spots") or {}).items()}}
     room: dict[str, Any] = {
         "id": room_id, "template": extra.get("template"),
         "name": extra.get("name") or _fill(tpl.get("name", room_id), ctx),
@@ -85,6 +107,8 @@ def _place(tpl: dict[str, Any], room_id: str, rect: tuple[float, float, float, f
     }
     if extra.get("owner"):
         room["owner"] = extra["owner"]
+    if extra.get("flip"):
+        room["flip"] = True
     lab = tpl.get("label") or [0, 0]
     room["label"] = [round(_coord(lab[0], "x", rect, mirror), 3), round(_coord(lab[1], "z", rect, mirror), 3)]
     for item in tpl.get("furniture") or []:
@@ -122,21 +146,8 @@ def _door(tpl: dict[str, Any], want: list[str], mirror: bool) -> tuple[str, floa
     return None
 
 
-def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], templates: dict[str, dict[str, Any]],
-                 outdoors: list[dict[str, Any]] | None = None, bedrooms: int = 0) -> dict[str, Any]:
-    """bedrooms 是卧室总数，住户比它少时多出来的就是空房，住户多了卧室跟着加。"""
-    if not residents:
-        raise LayoutError("至少要有一个住户")
-    try:
-        slots = max(len(residents), int(bedrooms or 0))
-    except (TypeError, ValueError):
-        raise LayoutError(f"bedrooms 要写数字，现在是 {bedrooms!r}") from None
-    bed_tpl = templates["bedroom"]
-    bed_w = float((bed_tpl.get("size") or [7, 7])[0])
-    bed_d = float((bed_tpl.get("size") or [7, 7])[1])
-
-    # ---------- 前排：排列
-    entries = []
+def _entries(rooms: list[dict[str, Any]], templates: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    out = []
     for i, r in enumerate(rooms):
         name = r.get("template")
         if name not in templates:
@@ -144,8 +155,12 @@ def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], t
         if name == "bedroom":
             raise LayoutError("卧室按住户自动生成，rooms 里不要写 bedroom")
         tpl = templates[name]
-        entries.append({"cfg": r, "tpl": tpl, "tall": tpl.get("kind") == "tall",
-                        "w": float(r.get("width") or (tpl.get("size") or [9, 5.5])[0])})
+        out.append({"cfg": r, "tpl": tpl, "tall": tpl.get("kind") == "tall",
+                    "w": float(r.get("width") or (tpl.get("size") or [9, 5.5])[0])})
+    return out
+
+
+def _columns(entries: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, dict[str, list[dict[str, Any]]]]:
     # 中间房间：第一个整高房间；没有整高房间就让第一个房间占中间（拉成整高）
     center = next((e for e in entries if e["tall"]), None) or (entries[0] if entries else None)
     cols: dict[str, list[dict[str, Any]]] = {"L": [], "R": []}
@@ -161,69 +176,23 @@ def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], t
             lst[-1]["w"] = max(lst[-1]["w"], e["w"])
         else:
             lst.append({"tall": e["tall"], "rooms": [e], "w": e["w"]})
+    return center, cols
 
-    # 房子左右对称：两边取较宽的一边为准，窄的一边把最外一列拉宽；某一边没有房间就让中间房间往那边伸
-    cw = center["w"] if center else 0.0
-    side_w = {s: sum(c["w"] for c in cols[s]) for s in "LR"}
-    half = max(cw / 2 + side_w["L"], cw / 2 + side_w["R"], bed_w * slots / 2, bed_w / 2)
-    width = 2 * half
-    bed_w = width / slots
-    center_ext = {"L": 0.0, "R": 0.0}
-    for s in "LR":
-        extra = half - (cw / 2 + side_w[s])
-        if extra > 1e-9:
-            if cols[s]:
-                cols[s][-1]["w"] += extra
-            elif center:
-                center_ext[s] = extra
-    x_min, x_max = -half, half
 
-    z_hall0 = 0.0 - HALL_DEPTH / 2 - 1.0      # 走廊北墙
-    z_hall1 = z_hall0 + HALL_DEPTH            # 走廊南墙
-    z_back0 = z_hall0 - bed_d
-    z_front1 = z_hall1 + (FRONT_DEPTH if entries else 0.0)
-    z_mid = z_hall1 + FRONT_DEPTH / 2
-
-    out_rooms: list[dict[str, Any]] = []
-    used_ids: set[str] = set()
+def _id_maker() -> Any:
+    used: set[str] = set()
 
     def new_id(base: str) -> str:
         rid, n = base, 2
-        while rid in used_ids:
+        while rid in used:
             rid, n = f"{base}{n}", n + 1
-        used_ids.add(rid)
+        used.add(rid)
         return rid
+    return new_id
 
-    # ---------- 卧室
-    for i, r in enumerate(residents):
-        rect = (x_min + i * bed_w, z_back0, x_min + (i + 1) * bed_w, z_hall0)
-        rid = new_id(str(r["id"]))
-        room = _place(bed_tpl, rid, rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
-                      {"owner": r["id"], "template": "bedroom"})
-        d = _door(bed_tpl, ["s"], False)
-        room["door"] = {"wall": "s", "at": round((rect[0] + rect[2]) / 2 + (d[1] if d else 0), 3)}
-        room["parent"] = "hall"
-        out_rooms.append(room)
 
-    # ---------- 空房：只有床和书桌，没有 spot，住户不会进去
-    empty_tpl = {**bed_tpl, "spots": {}, "furniture": [f for f in bed_tpl.get("furniture") or [] if f.get("type") in ("bed", "desk", "chair")]}
-    for i in range(len(residents), slots):
-        rect = (x_min + i * bed_w, z_back0, x_min + (i + 1) * bed_w, z_hall0)
-        room = _place(empty_tpl, new_id(f"vacant{i + 1}"), rect, False, {"owner": "", "color": "#cfc8bb"}, {"name": "空房", "template": "bedroom"})
-        d = _door(bed_tpl, ["s"], False)
-        room["door"] = {"wall": "s", "at": round((rect[0] + rect[2]) / 2 + (d[1] if d else 0), 3)}
-        room["parent"] = "hall"
-        room["vacant"] = True
-        out_rooms.append(room)
-
-    # ---------- 走廊
-    hall = {"id": new_id("hall"), "name": "走廊", "kind": "hall", "icon": "", "floor": "tile",
-            "rect": [x_min, z_hall0, x_max, z_hall1], "furniture": [
-                {"type": "plant", "x": x_min + 0.6, "z": (z_hall0 + z_hall1) / 2},
-                {"type": "plant", "x": x_max - 0.6, "z": (z_hall0 + z_hall1) / 2}],
-            "spots": {}, "label": None}
-    out_rooms.append(hall)
-
+def _front_row(center: Any, cols: Any, center_ext: dict[str, float], cw: float, z_hall1: float, z_front1: float, z_mid: float,
+               hall: dict[str, Any], new_id: Any, out_rooms: list[dict[str, Any]]) -> dict[str, Any] | None:
     # ---------- 前排
     def place_front(e: dict[str, Any], rect: tuple[float, float, float, float], mirror: bool) -> dict[str, Any]:
         cfg = e["cfg"]
@@ -285,18 +254,11 @@ def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], t
                 if bot["door"]["wall"] != "n":
                     bot["door"] = {"wall": "n", "at": round((x0 + x1) / 2, 3)}
             out_rooms.append(bot)
+    return center_room
 
-    if center_room is None:
-        # 没有整高房间：大门开在最靠中间的前排房间南墙
-        front = [r for r in out_rooms if r["rect"][3] == z_front1]
-        if front:
-            mid = min(front, key=lambda r: abs((r["rect"][0] + r["rect"][2]) / 2))
-            mid["entrance"] = {"wall": "s", "at": 0.0}
-    for r in out_rooms:
-        if r.get("entrance"):
-            ent = r["entrance"]
-            ent["at"] = round((r["rect"][0] + r["rect"][2]) / 2 + float(ent["at"]), 3)
 
+def _outdoor_rooms(outdoors: Any, templates: dict[str, dict[str, Any]], out_rooms: list[dict[str, Any]], new_id: Any,
+                   z_front1: float, x_min: float, x_max: float) -> tuple[float, float, float]:
     # ---------- 户外：大门外往南一块接一块，从大门（或上一块场地的南边）走过去
     door_room = next((r for r in out_rooms if r.get("entrance")), None)
     z_end, x_low, x_high = z_front1, x_min, x_max
@@ -317,6 +279,174 @@ def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], t
             out_rooms.append(yard)
             parent, at, z_end = yard["id"], 0.0, rect[3]
             x_low, x_high = min(x_low, rect[0]), max(x_high, rect[2])
+    return z_end, x_low, x_high
+
+
+def _courtyard(residents: list[dict[str, Any]], slots: int, wings: list[dict[str, Any]], entries: list[dict[str, Any]],
+               templates: dict[str, dict[str, Any]], outdoors: Any) -> dict[str, Any]:
+    bed_tpl = templates["bedroom"]
+    bed_w0, bed_d = (float(v) for v in (bed_tpl.get("size") or [7, 7])[:2])
+    wing_w, wing_d = max(w["w"] for w in wings), max(float((w["tpl"].get("size") or [14, 11])[1]) for w in wings)
+    new_id = _id_maker()
+    center, cols = _columns(entries)
+    cw = center["w"] if center else 0.0
+    side_w = {s: sum(c["w"] for c in cols[s]) for s in "LR"}
+    north = slots - 2
+    half = max(cw / 2 + max(side_w.values()) + bed_w0, bed_w0 * north / 2, wing_w + HALL_DEPTH + MIN_COURT / 2)
+    x_min, x_max = -half, half
+    bed_w = 2 * half / north
+    center_ext = {"L": 0.0, "R": 0.0}
+    for s in "LR":
+        extra = half - bed_w0 - (cw / 2 + side_w[s])
+        if extra > 1e-9:
+            if cols[s]:
+                cols[s][-1]["w"] += extra
+            elif center:
+                center_ext[s] = extra
+    z_n0, z_n1 = -HALL_DEPTH, 0.0                    # 北走廊
+    z_s0, z_s1 = wing_d, wing_d + HALL_DEPTH         # 南走廊
+    z_back0, z_front1 = z_n0 - bed_d, z_s1 + FRONT_DEPTH
+    z_mid = z_s1 + FRONT_DEPTH / 2
+    door_off = float((bed_tpl.get("doors") or {}).get("s", 0))
+    rooms: list[dict[str, Any]] = []
+    rects = [(x_min + i * bed_w, z_back0, x_min + (i + 1) * bed_w, z_n0) for i in range(north)]
+    rects += [(x_min, z_s1, x_min + bed_w0, z_front1), (x_max - bed_w0, z_s1, x_max, z_front1)]
+    empty_tpl = {**bed_tpl, "spots": {}, "furniture": [f for f in bed_tpl.get("furniture") or [] if f.get("type") in ("bed", "desk", "chair")]}
+    for i, rect in enumerate(rects):
+        flip = i >= north
+        if i < len(residents):
+            r = residents[i]
+            room = _place(bed_tpl, new_id(str(r["id"])), rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
+                          {"owner": r["id"], "template": "bedroom", "flip": flip})
+        else:
+            room = _place(empty_tpl, new_id(f"vacant{i + 1}"), rect, False, {"owner": "", "color": "#cfc8bb"}, {"name": "空房", "template": "bedroom", "flip": flip})
+            room["vacant"] = True
+        room["door"] = {"wall": "n" if flip else "s", "at": round((rect[0] + rect[2]) / 2 + door_off, 3)}
+        room["parent"] = "hall"
+        rooms.append(room)
+
+    wx0, wx1 = x_min + wing_w, x_max - wing_w
+    parts = [[x_min, z_n0, x_max, z_n1], [x_min, z_s0, x_max, z_s1], [wx0, z_n1, wx0 + HALL_DEPTH, z_s0], [wx1 - HALL_DEPTH, z_n1, wx1, z_s0]]
+    zm = (z_n0 + z_n1) / 2
+    hall = {"id": new_id("hall"), "name": "走廊", "kind": "hall", "icon": "", "floor": "tile", "rect": [x_min, z_n0, x_max, z_s1],
+            "parts": [[round(c, 3) for c in p] for p in parts], "spots": {}, "label": None,
+            "furniture": [{"type": "plant", "x": x_min + 0.6, "z": zm}, {"type": "plant", "x": x_max - 0.6, "z": zm},
+                          {"type": "plant", "x": x_min + 0.6, "z": z_s0 + 1}, {"type": "plant", "x": x_max - 0.6, "z": z_s0 + 1}]}
+    rooms.append(hall)
+    gaps = [{"axis": "h", "at": z, "a": round(a, 3), "b": round(a + HALL_DEPTH, 3)} for z in (z_n1, z_s0) for a in (wx0, wx1 - HALL_DEPTH)]
+    for w, rect, mirror in ((wings[0], (x_min, z_n1, x_min + wing_w, z_s0), False), (wings[1], (x_max - wing_w, z_n1, x_max, z_s0), True)):
+        room = _place(w["tpl"], new_id(str(w["cfg"].get("id") or w["cfg"]["template"])), rect, mirror, {}, {"name": w["cfg"].get("name"), "template": w["cfg"]["template"]})
+        room["door"] = {"wall": "n", "at": round((rect[0] + rect[2]) / 2, 3)}
+        room["parent"] = hall["id"]
+        room["kind"] = "tall"
+        rooms.append(room)
+    cx0, cx1 = wx0 + HALL_DEPTH, wx1 - HALL_DEPTH
+    if "courtyard" in templates:
+        yard = _place(templates["courtyard"], new_id("courtyard"), (cx0, z_n1, cx1, z_s0), False, {}, {"template": "courtyard"})
+        yard["door"] = {"wall": "n", "at": round((cx0 + cx1) / 2, 3)}
+        yard["parent"] = hall["id"]
+        rooms.append(yard)
+    center_room = _front_row(center, cols, center_ext, cw, z_s1, z_front1, z_mid, hall, new_id, rooms)
+    if center_room is None:
+        raise LayoutError("回字形需要一间客厅")
+    ent = center_room["entrance"]
+    ent["at"] = round((center_room["rect"][0] + center_room["rect"][2]) / 2 + float(ent["at"]), 3)
+    z_end, x_low, x_high = _outdoor_rooms(outdoors, templates, rooms, new_id, z_front1, x_min, x_max)
+    return {"version": 2, "style": "courtyard", "house": [round(v, 3) for v in (x_min, z_back0, x_max, z_front1)], "wall_height": 2.5,
+            "door_width": DOOR_WIDTH, "hall": hall["id"], "hall_z": zm, "hall_gaps": gaps, "rooms": rooms,
+            "island": [round(x_low - 5, 3), round(z_back0 - 5, 3), round(x_high + 5, 3), round(z_end + 5, 3)]}
+
+
+def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], templates: dict[str, dict[str, Any]],
+                 outdoors: list[dict[str, Any]] | None = None, bedrooms: int = 0) -> dict[str, Any]:
+    """bedrooms 是卧室总数，住户比它少时多出来的就是空房，住户多了卧室跟着加。"""
+    if not residents:
+        raise LayoutError("至少要有一个住户")
+    try:
+        slots = max(len(residents), int(bedrooms or 0))
+    except (TypeError, ValueError):
+        raise LayoutError(f"bedrooms 要写数字，现在是 {bedrooms!r}") from None
+    bed_tpl = templates["bedroom"]
+    bed_w = float((bed_tpl.get("size") or [7, 7])[0])
+    bed_d = float((bed_tpl.get("size") or [7, 7])[1])
+
+    # ---------- 前排：排列
+    entries = _entries(rooms, templates)
+    tall = [e for e in entries if e["tall"]]
+    if slots >= 6 and len(tall) >= 3:
+        wings = tall[1:3]
+        return _courtyard(residents, slots, wings, [e for e in entries if e not in wings], templates, outdoors)
+    center, cols = _columns(entries)
+
+    # 房子左右对称：两边取较宽的一边为准，窄的一边把最外一列拉宽；某一边没有房间就让中间房间往那边伸
+    cw = center["w"] if center else 0.0
+    side_w = {s: sum(c["w"] for c in cols[s]) for s in "LR"}
+    half = max(cw / 2 + side_w["L"], cw / 2 + side_w["R"], bed_w * slots / 2, bed_w / 2)
+    width = 2 * half
+    bed_w = width / slots
+    center_ext = {"L": 0.0, "R": 0.0}
+    for s in "LR":
+        extra = half - (cw / 2 + side_w[s])
+        if extra > 1e-9:
+            if cols[s]:
+                cols[s][-1]["w"] += extra
+            elif center:
+                center_ext[s] = extra
+    x_min, x_max = -half, half
+
+    z_hall0 = 0.0 - HALL_DEPTH / 2 - 1.0      # 走廊北墙
+    z_hall1 = z_hall0 + HALL_DEPTH            # 走廊南墙
+    z_back0 = z_hall0 - bed_d
+    z_front1 = z_hall1 + (FRONT_DEPTH if entries else 0.0)
+    z_mid = z_hall1 + FRONT_DEPTH / 2
+
+    out_rooms: list[dict[str, Any]] = []
+    new_id = _id_maker()
+
+    # ---------- 卧室
+    for i, r in enumerate(residents):
+        rect = (x_min + i * bed_w, z_back0, x_min + (i + 1) * bed_w, z_hall0)
+        rid = new_id(str(r["id"]))
+        room = _place(bed_tpl, rid, rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
+                      {"owner": r["id"], "template": "bedroom"})
+        d = _door(bed_tpl, ["s"], False)
+        room["door"] = {"wall": "s", "at": round((rect[0] + rect[2]) / 2 + (d[1] if d else 0), 3)}
+        room["parent"] = "hall"
+        out_rooms.append(room)
+
+    # ---------- 空房：只有床和书桌，没有 spot，住户不会进去
+    empty_tpl = {**bed_tpl, "spots": {}, "furniture": [f for f in bed_tpl.get("furniture") or [] if f.get("type") in ("bed", "desk", "chair")]}
+    for i in range(len(residents), slots):
+        rect = (x_min + i * bed_w, z_back0, x_min + (i + 1) * bed_w, z_hall0)
+        room = _place(empty_tpl, new_id(f"vacant{i + 1}"), rect, False, {"owner": "", "color": "#cfc8bb"}, {"name": "空房", "template": "bedroom"})
+        d = _door(bed_tpl, ["s"], False)
+        room["door"] = {"wall": "s", "at": round((rect[0] + rect[2]) / 2 + (d[1] if d else 0), 3)}
+        room["parent"] = "hall"
+        room["vacant"] = True
+        out_rooms.append(room)
+
+    # ---------- 走廊
+    hall = {"id": new_id("hall"), "name": "走廊", "kind": "hall", "icon": "", "floor": "tile",
+            "rect": [x_min, z_hall0, x_max, z_hall1], "furniture": [
+                {"type": "plant", "x": x_min + 0.6, "z": (z_hall0 + z_hall1) / 2},
+                {"type": "plant", "x": x_max - 0.6, "z": (z_hall0 + z_hall1) / 2}],
+            "spots": {}, "label": None}
+    out_rooms.append(hall)
+
+    center_room = _front_row(center, cols, center_ext, cw, z_hall1, z_front1, z_mid, hall, new_id, out_rooms)
+
+    if center_room is None:
+        # 没有整高房间：大门开在最靠中间的前排房间南墙
+        front = [r for r in out_rooms if r["rect"][3] == z_front1]
+        if front:
+            mid = min(front, key=lambda r: abs((r["rect"][0] + r["rect"][2]) / 2))
+            mid["entrance"] = {"wall": "s", "at": 0.0}
+    for r in out_rooms:
+        if r.get("entrance"):
+            ent = r["entrance"]
+            ent["at"] = round((r["rect"][0] + r["rect"][2]) / 2 + float(ent["at"]), 3)
+
+    z_end, x_low, x_high = _outdoor_rooms(outdoors, templates, out_rooms, new_id, z_front1, x_min, x_max)
 
     house = [x_min, z_back0, x_max, z_front1]
     return {
@@ -338,7 +468,7 @@ def spots_index(layout: dict[str, Any]) -> list[dict[str, Any]]:
         for sid, s in (r.get("spots") or {}).items():
             out.append({"room": r["id"], "room_name": r["name"], "spot": sid, "label": s.get("label", sid),
                         "tags": list(s.get("tags") or []), "owner": r.get("owner"), "pose": s.get("pose", "stand"),
-                        "ride": s.get("ride", ""), "outdoor": r.get("kind") == "outdoor"})
+                        "ride": s.get("ride", ""), "outdoor": r.get("kind") in ("outdoor", "court")})
     return out
 
 

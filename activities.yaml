@@ -243,6 +243,28 @@ visit:
   weight: 0.8
   gives: {social: 28, fun: 6}
 
+# ---------- 庭院
+sunbathe:
+  label: 晒太阳
+  spots: [court_sit]
+  text: "在{place}晒了会儿太阳"
+  think: false
+  daytime: true
+  emote: "☀️"
+  anim: doze
+  gives: {energy: 12, fun: 8}
+
+garden:
+  label: 打理花坛
+  spots: [court_garden]
+  text: "在{place}打理了一会儿"
+  think: false
+  daytime: true
+  emote: "🌷"
+  anim: tidy
+  weight: 0.8
+  gives: {fun: 12, energy: -3}
+
 # ---------- 游乐场
 swing:
   label: 荡秋千

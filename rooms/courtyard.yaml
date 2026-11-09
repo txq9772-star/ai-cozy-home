@@ -1,0 +1,27 @@
+# 回字形布局中间的庭院：露天，下雨时住户不来。这个模板自动使用，不用写进 rooms。
+name: 庭院
+icon: tree
+kind: court
+size: [10, 11]
+floor: grass
+doors: {n: 0}
+label: [0, "s-1.0"]
+furniture:
+  - {type: path_stones, x: 0, z: 0, pts: [[0, -5], [0.4, -3.4], [-0.8, -1.6], [-0.6, 0.6], [1.0, 2.2]]}
+  - {type: tree_big, x: 2.2, z: -1.2}
+  - {type: rug, x: 1.0, z: 2.7, w: 3.0, d: 2.2, color: "#b5c98a"}
+  - {type: bench, x: -3.4, z: 1.2, face: e}
+  - {type: flowerbed, x: -3.6, z: "n+0.7", w: 2.0, d: 0.8}
+  - {type: flowerbed, x: 3.6, z: "n+0.7", w: 2.0, d: 0.8}
+  - {type: flowerbed, x: -3.0, z: "s-0.7", w: 3.0, d: 0.8}
+  - {type: flowerbed, x: 3.3, z: "s-0.7", w: 2.4, d: 0.8}
+  - {type: lamp_post, x: 3.9, z: 0.6}
+spots:
+  bench_a:  {x: -3.3, z: 0.6, label: 庭院的长椅, face: e, pose: sit, tags: [bench]}
+  bench_b:  {x: -3.3, z: 1.8, label: 庭院的长椅, face: e, pose: sit, tags: [bench]}
+  sun_a:    {x: 0.3, z: 2.7, label: 庭院的草地, face: s, pose: sit_floor, tags: [court_sit]}
+  sun_b:    {x: 1.8, z: 2.7, label: 庭院的草地, face: s, pose: sit_floor, tags: [court_sit]}
+  tree:     {x: 1.2, z: -0.4, label: 树下, face: e, pose: sit_floor, tags: [court_sit]}
+  bed_a:    {x: -3.6, z: "n+1.5", label: 花坛边, face: n, pose: stand, tags: [court_garden]}
+  bed_b:    {x: 3.6, z: "n+1.5", label: 花坛边, face: n, pose: stand, tags: [court_garden]}
+  bed_c:    {x: -3.0, z: "s-1.5", label: 花坛边, face: s, pose: stand, tags: [court_garden]}

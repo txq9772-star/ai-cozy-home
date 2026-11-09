@@ -101,7 +101,7 @@ export class People {
     else if (d.wall === 's') { door = [d.at, z1]; inside = [d.at, z1 - k]; outside = [d.at, z1 + k]; }
     else if (d.wall === 'w') { door = [x0, d.at]; inside = [x0 + k, d.at]; outside = [x0 - k, d.at]; }
     else { door = [x1, d.at]; inside = [x1 - k, d.at]; outside = [x1 + k, d.at]; }
-    if (room.parent === this.layout.hall) outside[1] = this.layout.hall_z;
+    if (room.parent === this.layout.hall && this.layout.style !== 'courtyard') outside[1] = this.layout.hall_z;
     return { inside, door, outside };
   }
 
@@ -117,7 +117,7 @@ export class People {
   // 户外场地里的一段路：绕开设施
   detour(roomId, from, to) {
     const room = this.rooms.get(roomId);
-    if (!room || room.kind === 'hall') return [to];
+    if (!room || (room.kind === 'hall' && !room.parts)) return [to];
     return this.grid(roomId).find(from, to);
   }
 
@@ -148,6 +148,9 @@ export class People {
       if (id === common) break;
       const d = this.doorPts(this.rooms.get(id));
       if (d) down.unshift([d.outside, d.door, d.inside]);
+    }
+    if (common === this.layout.hall && this.rooms.get(common)?.parts && pts.length && down.length) {
+      pts.push(...this.detour(common, pts[pts.length - 1], down[0][0]).slice(0, -1));
     }
     for (const seg of down) pts.push(...seg);
     pts.push(to);

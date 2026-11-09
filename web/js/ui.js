@@ -2,6 +2,7 @@
 import { api, esc, hhmm, mdhm, clockText, toast } from './util.js';
 import { exportGlb } from './avatar.js';
 import { Replay } from './replay.js';
+import { prefsPanel } from './prefs.js';
 
 const $ = (id) => document.getElementById(id);
 const S = { residents: new Map(), home: {}, feed: [], feedOldest: null, chat: [], pending: [], world: null, people: null };
@@ -451,6 +452,7 @@ function renderSettings() {
       <button class="btn ${S.people.look === '3d' ? 'primary' : ''}" data-a="look3d">3D 小人</button>
       <button class="btn ${S.people.look === '2d' ? 'primary' : ''}" data-a="look2d">立绘</button>
       <button class="btn ${S.world.lowWalls ? 'primary' : ''}" data-a="walls">${S.world.lowWalls ? '内墙：矮' : '内墙：正常'}</button></div></section>
+    <section id="prefs-slot"></section>
     <section><h4>住户接入</h4><div class="kv">${[...S.residents.values()].map((r) =>
       `<div><span class="dot ${esc(r.status)}"></span><b>${esc(r.name)}</b> <span>${esc(r.access_label)}</span>${r.status === 'offline' ? `<br><span>${esc(r.note || r.ready_info)}</span>` : ''}</div>`).join('')}</div></section>
     ${h.move_in ? `<section><h4>办入住</h4><form class="movein" id="movein">
@@ -463,6 +465,8 @@ function renderSettings() {
       <div class="kv">key 只从运行小窝的机器的环境变量读。办好的住户存在数据库里，home.yaml 不变。</div></section>` : ''}
     <section><h4>内容来源</h4><div class="kv">${srcs}</div></section>
     <section><h4>关于</h4><div class="kv">时区 ${esc(h.tz || '')}${h.mock ? ' · 模拟住户：不调用模型' : ''}${h.fast ? ' · 加速' : ''}</div></section>`;
+  S.prefsEl = S.prefsEl || prefsPanel();
+  $('prefs-slot').replaceWith(S.prefsEl);
   const act = async (a) => {
     try {
       if (a === 'pause' || a === 'resume') setHome(await api('/api/pause', { method: 'POST', body: { paused: a === 'pause' } }));

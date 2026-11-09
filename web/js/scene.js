@@ -5,9 +5,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { buildFurniture, box, mat } from './furniture.js';
 
-const ROOM_ICON = { bed: '🛏', books: '📚', pot: '🍳', sofa: '🛋', game: '🎮', box: '📦', park: '🎠', lake: '🦆' };
+const ROOM_ICON = { bed: '🛏', books: '📚', pot: '🍳', sofa: '🛋', game: '🎮', box: '📦', park: '🎠', lake: '🦆', tree: '🌳' };
 export const GROUND_Y = -0.5;      // 屋外草地的高度（屋里地板是 0）
-const FLOOR = { wood: '#c9a37a', wood2: '#b2885f', tile: '#d3cfdc', carpet: '#bcb3cc', concrete: '#a9a8b2' };
+const FLOOR = { wood: '#c9a37a', wood2: '#b2885f', tile: '#d3cfdc', carpet: '#bcb3cc', concrete: '#a9a8b2', grass: '#83ad62' };
 const WALL = '#dcd8e8', WALL_TOP = '#8d88a8', WALL_OUT = '#c3bdd8';
 const EXT_H = 2.5, INT_H = 2.0, LOW_H = 0.35;
 
@@ -45,7 +45,7 @@ export class World {
     this.camera = new THREE.PerspectiveCamera(30, 1, 2, 700);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, minPolarAngle: 0.3, maxPolarAngle: 1.22,
-      minDistance: 8, maxDistance: 220, screenSpacePanning: false, zoomToCursor: true });
+      minDistance: 8, maxDistance: 280, screenSpacePanning: false, zoomToCursor: true });
     this.controls.addEventListener('change', () => this.updateCutaway());
 
     this.hemi = new THREE.HemisphereLight('#dbe8ff', '#5d6b4a', 1.2);
@@ -323,9 +323,11 @@ export class World {
     const [x0, z0, x1, z1] = r.rect;
     const outdoor = r.kind === 'outdoor';
     if (!outdoor) {
-      const floor = box(x1 - x0 - 0.02, 0.06, z1 - z0 - 0.02, FLOOR[r.floor] || FLOOR.wood, (x0 + x1) / 2, -0.06, (z0 + z1) / 2);
-      floor.castShadow = false;
-      this.house.add(floor);
+      for (const [a0, b0, a1, b1] of r.parts || [r.rect]) {
+        const floor = box(a1 - a0 - 0.02, 0.06, b1 - b0 - 0.02, FLOOR[r.floor] || FLOOR.wood, (a0 + a1) / 2, -0.06, (b0 + b1) / 2);
+        floor.castShadow = false;
+        this.house.add(floor);
+      }
     }
     for (const f of r.furniture || []) {
       const obj = buildFurniture(f);
@@ -344,7 +346,7 @@ export class World {
       }
       if (f.type === 'lamp_post') this.lightPool(f.x, f.z);
     }
-    if (r.kind !== 'hall' && !outdoor) {
+    if (r.kind !== 'hall' && r.kind !== 'court' && !outdoor) {
       const light = new THREE.PointLight('#ffcf8a', 0, Math.max(x1 - x0, z1 - z0) * 1.2, 1.6);
       light.position.set((x0 + x1) / 2, 2.3, (z0 + z1) / 2);
       this.house.add(light);
@@ -380,7 +382,8 @@ export class World {
     if (old?.key === key) return;
     if (old) this.house.remove(old.group);
     const [x0, z0, x1, z1] = r.rect;
-    const slots = [[x1 - 0.55, z1 - 0.55], [x0 + 0.55, z1 - 0.6], [x0 + 1.55, z1 - 0.6], [x0 + 0.6, z1 - 1.7], [x1 - 0.6, z0 + 2.4], [x0 + 0.6, z0 + 3.5]];
+    const fz = (z) => (r.flip ? z0 + z1 - z : z);
+    const slots = [[x1 - 0.55, fz(z1 - 0.55)], [x0 + 0.55, fz(z1 - 0.6)], [x0 + 1.55, fz(z1 - 0.6)], [x0 + 0.6, fz(z1 - 1.7)], [x1 - 0.6, fz(z0 + 2.4)], [x0 + 0.6, fz(z0 + 3.5)]];
     const group = new THREE.Group();
     (items || []).slice(0, slots.length).forEach((type, i) => group.add(buildFurniture({ type, x: slots[i][0], z: slots[i][1] })));
     this.house.add(group);
@@ -417,10 +420,12 @@ export class World {
     };
     const indoor = layout.rooms.filter((r) => r.kind !== 'outdoor');
     for (const r of indoor) {
-      const [x0, z0, x1, z1] = r.rect;
-      add('h', z0, x0, x1); add('h', z1, x0, x1); add('v', x0, z0, z1); add('v', x1, z0, z1);
+      for (const [x0, z0, x1, z1] of r.parts || [r.rect]) {
+        add('h', z0, x0, x1); add('h', z1, x0, x1); add('v', x0, z0, z1); add('v', x1, z0, z1);
+      }
     }
     for (const r of indoor) { cut(r, r.door); cut(r, r.entrance); }
+    for (const g of layout.hall_gaps || []) lines.get(key(g.axis, g.at))?.cuts.push([g.a, g.b]);
     const eps = 0.01;
     for (const ln of lines.values()) {
       const spans = ln.spans.sort((a, b) => a[0] - b[0]);

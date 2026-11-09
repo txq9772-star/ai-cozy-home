@@ -109,7 +109,8 @@ class LayoutTests(unittest.TestCase):
         L = build_layout(CFG["residents"], rooms, TPL, None, 8)
         empty = [r for r in L["rooms"] if r.get("vacant")]
         self.assertEqual(len(empty), 4)
-        self.assertEqual(L["house"][2] - L["house"][0], 56)
+        self.assertEqual(L["style"], "courtyard")
+        self.assertEqual(L["house"][2] - L["house"][0], 42)
         for r in empty:
             self.assertFalse(r["spots"])
             self.assertNotIn("owner", r)
@@ -131,6 +132,39 @@ class LayoutTests(unittest.TestCase):
         for r in before["rooms"]:
             if not r.get("vacant"):
                 self.assertEqual(after[r["id"]]["rect"], r["rect"], r["id"])
+
+    def test_courtyard_shape(self):
+        rooms = ROOMS + [{"template": "lounge"}, {"template": "library"}]
+        L = build_layout(CFG["residents"], rooms, TPL, [{"template": "playground"}, {"template": "lake"}], 8)
+        by = {r["id"]: r for r in L["rooms"]}
+        court = by["courtyard"]
+        self.assertEqual(court["kind"], "court")
+        self.assertTrue(all(s["outdoor"] for s in spots_index(L) if s["room"] == "courtyard"))
+        self.assertEqual(len(by["hall"]["parts"]), 4)
+        beds = [r for r in L["rooms"] if r.get("template") == "bedroom"]
+        self.assertEqual(len(beds), 8)
+        self.assertEqual(sum(1 for r in beds if r.get("flip")), 2)
+        for r in beds:
+            if r.get("flip"):
+                self.assertEqual(r["door"]["wall"], "n")
+        indoor = [r for r in L["rooms"] if r["kind"] not in ("hall", "outdoor")]
+        for i, a in enumerate(indoor):                # 房间互不重叠
+            for b in indoor[i + 1:]:
+                ax0, az0, ax1, az1 = a["rect"]
+                bx0, bz0, bx1, bz1 = b["rect"]
+                self.assertFalse(ax0 < bx1 - 1e-6 and bx0 < ax1 - 1e-6 and az0 < bz1 - 1e-6 and bz0 < az1 - 1e-6, (a["id"], b["id"]))
+
+    def test_few_bedrooms_keep_straight_row(self):
+        rooms = ROOMS + [{"template": "lounge"}, {"template": "library"}]
+        self.assertNotEqual(build_layout(CFG["residents"], rooms, TPL).get("style"), "courtyard")
+
+    def test_flipped_bedroom_mirrors_furniture(self):
+        rooms = ROOMS + [{"template": "lounge"}, {"template": "library"}]
+        L = build_layout(CFG["residents"], rooms, TPL, None, 8)
+        r = next(x for x in L["rooms"] if x.get("flip"))
+        bed = next(f for f in r["furniture"] if f["type"] == "bed")
+        self.assertGreater(bed["z"], (r["rect"][1] + r["rect"][3]) / 2)
+        self.assertEqual(bed["face"], "n")
 
     def test_more_residents_than_bedrooms(self):
         many = [{"id": f"r{i}", "name": f"r{i}"} for i in range(9)]

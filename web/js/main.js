@@ -3,6 +3,9 @@ import { World } from './scene.js';
 import { People } from './people.js';
 import * as ui from './ui.js';
 import { api, syncClock, homeHour, getToken, toast } from './util.js';
+import { loadPrefs } from './prefs.js';
+
+loadPrefs();
 
 const world = new World(document.getElementById('stage'), document.getElementById('labels'));
 const people = new People(world);
