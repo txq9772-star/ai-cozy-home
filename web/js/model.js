@@ -49,7 +49,25 @@ export async function loadModelAvatar(url, spec = {}, fallbackColor = '#999') {
   for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
   if (!actions.idle) throw new Error('模型缺少 idle 动画：' + url);
 
-  const st = { pose: 'stand', walking: false, closed: 0, closedTarget: 0, current: null };
+  const st = { pose: 'stand', walking: false, closed: 0, closedTarget: 0, current: null, gesture: null };
+  const bones = { r: [scene.getObjectByName('arm_R'), scene.getObjectByName('fore_R')], l: [scene.getObjectByName('arm_L'), scene.getObjectByName('fore_L')] };
+  const hand = new THREE.Object3D();
+  hand.position.set(0, 0.24, 0);
+  bones.r[1]?.add(hand);
+  const X = new THREE.Vector3(1, 0, 0), q = new THREE.Quaternion(), inv = new THREE.Quaternion(), axis = new THREE.Vector3();
+  function bend(side, up, fore) {
+    const [arm, low] = bones[side];
+    if (!arm || !low) return;
+    // 各骨骼自身的轴不一定朝前，这里把“人物的左右轴”换算到骨骼父节点的坐标里，手臂才是真的往前抬
+    const turn = (bone, angle) => {
+      inv.identity();
+      for (let n = bone.parent; n && n !== scene; n = n.parent) inv.premultiply(n.quaternion);
+      axis.copy(X).applyQuaternion(inv.invert());
+      bone.quaternion.premultiply(q.setFromAxisAngle(axis, -angle));
+    };
+    turn(arm, up);
+    turn(low, fore);
+  }
   const clipFor = (p) => ({ stand: 'idle', sit_low: 'sit' }[p] || p);
 
   function play(name, fade) {
@@ -66,7 +84,7 @@ export async function loadModelAvatar(url, spec = {}, fallbackColor = '#999') {
     const pose = st.walking ? 'walk' : st.pose;
     play(clipFor(pose), fade);
     inner.position.y = pose === 'sit_low' ? -0.08 : 0;
-    quilt.visible = pose === 'lie';
+    quilt.visible = false;                // 被子由床提供，会贴着身体
   }
 
   function setPose(pose) { if (pose !== st.pose) { st.pose = pose; apply(); } }
@@ -81,6 +99,7 @@ export async function loadModelAvatar(url, spec = {}, fallbackColor = '#999') {
   }
   function update(dt) {
     mixer.update(dt);
+    if (st.gesture) { bend('r', st.gesture.r[0], st.gesture.r[1]); bend('l', st.gesture.l[0], st.gesture.l[1]); }
     if (st.closed !== st.closedTarget) {
       const step = dt * 6;
       st.closed = Math.abs(st.closedTarget - st.closed) <= step ? st.closedTarget : st.closed + Math.sign(st.closedTarget - st.closed) * step;
@@ -90,5 +109,11 @@ export async function loadModelAvatar(url, spec = {}, fallbackColor = '#999') {
 
   apply(0);
   update(0);
-  return { root, setPose, setWalking, setAsleep, setDim, update, height: 1.55 };
+  if (bones.r[0] && bones.r[1]) {                     // 手的位置按骨骼实际朝向算：从肩到肘的方向延长
+    scene.updateWorldMatrix(true, true);
+    const a = bones.r[0].getWorldPosition(new THREE.Vector3()), b = bones.r[1].getWorldPosition(new THREE.Vector3());
+    const tip = b.clone().add(b.clone().sub(a).normalize().multiplyScalar(0.2));
+    hand.position.copy(bones.r[1].worldToLocal(tip));
+  }
+  return { root, setPose, setWalking, setAsleep, setDim, update, height: 1.55, hand, setGesture(g) { st.gesture = g; } };
 }

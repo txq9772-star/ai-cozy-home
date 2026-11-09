@@ -230,7 +230,10 @@ export function buildAvatar(spec = {}, fallbackColor = '#999') {
   }
 
   // ---------------- 动画
-  const st = { pose: 'stand', t: Math.random() * 10, walking: false, asleep: false };
+  const st = { pose: 'stand', t: Math.random() * 10, walking: false, asleep: false, gesture: null };
+  const hand = new THREE.Object3D();
+  hand.position.set(0, -0.32, 0);
+  arms[0].add(hand);
   const allMats = [];
   root.traverse((o) => { if (o.isMesh) { (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => allMats.push(m)); } });
 
@@ -270,7 +273,8 @@ export function buildAvatar(spec = {}, fallbackColor = '#999') {
       head.rotation.z = Math.sin(t * 0.7) * 0.03;
       y += Math.sin(t * 2.2) * 0.006;
     }
-    quilt.visible = lie;
+    if (st.gesture) { arms[0].rotation.x -= st.gesture.r[0] + st.gesture.r[1] * 0.5; arms[1].rotation.x -= st.gesture.l[0] + st.gesture.l[1] * 0.5; }
+    quilt.visible = false;                // 被子由床提供，会贴着身体
     if (lie) {
       inner.rotation.x = -Math.PI / 2;
       inner.position.set(0, 0.9, 0.72);
@@ -285,7 +289,7 @@ export function buildAvatar(spec = {}, fallbackColor = '#999') {
   }
 
   update(0);
-  return { root, setPose, setWalking, setAsleep, setDim, update, height: 1.55 };
+  return { root, setPose, setWalking, setAsleep, setDim, update, height: 1.55, hand, setGesture(g) { st.gesture = g; } };
 }
 
 // ---------------------------------------------------------------- 导出 .glb

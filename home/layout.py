@@ -78,6 +78,26 @@ def _fill(v: Any, ctx: dict[str, str]) -> Any:
     return v
 
 
+def bedroom_style(resident: dict[str, Any], tpl: dict[str, Any]) -> dict[str, Any]:
+    """按人设和喜好给卧室换风格。room_style 可以手动指定，rooms/bedroom.yaml 的 styles 里写着每种风格。"""
+    styles = tpl.get("styles") or {}
+    likes = resident.get("likes") or {}
+    text = str(resident.get("persona") or "")
+    key = str(resident.get("room_style") or "")
+    if key not in styles:
+        if any(w in text for w in ("海", "鲸", "鱼")):
+            key = "ocean"
+        elif any(w in text for w in ("好奇", "收集", "什么都")):
+            key = "curious"
+        else:
+            top = max(("read", "video", "browse", "tv"), key=lambda k: float(likes.get(k, 0)))
+            key = {"read": "books", "browse": "night", "video": "media", "tv": "media"}[top] if likes else "plants"
+    st = styles.get(key) or {}
+    rug = st.get("rug")
+    furniture = [({**f, "color": rug} if f.get("type") == "rug" and rug else f) for f in tpl.get("furniture") or []]
+    return {**tpl, "floor": st.get("floor", tpl.get("floor")), "furniture": furniture + list(st.get("add") or [])}
+
+
 def _flip_z(v: Any) -> Any:
     if isinstance(v, (int, float)):
         return -float(v)
@@ -316,7 +336,7 @@ def _courtyard(residents: list[dict[str, Any]], slots: int, wings: list[dict[str
         flip = i >= north
         if i < len(residents):
             r = residents[i]
-            room = _place(bed_tpl, new_id(str(r["id"])), rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
+            room = _place(bedroom_style(r, bed_tpl), new_id(str(r["id"])), rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
                           {"owner": r["id"], "template": "bedroom", "flip": flip})
         else:
             room = _place(empty_tpl, new_id(f"vacant{i + 1}"), rect, False, {"owner": "", "color": "#cfc8bb"}, {"name": "空房", "template": "bedroom", "flip": flip})
@@ -331,7 +351,10 @@ def _courtyard(residents: list[dict[str, Any]], slots: int, wings: list[dict[str
     hall = {"id": new_id("hall"), "name": "走廊", "kind": "hall", "icon": "", "floor": "tile", "rect": [x_min, z_n0, x_max, z_s1],
             "parts": [[round(c, 3) for c in p] for p in parts], "spots": {}, "label": None,
             "furniture": [{"type": "plant", "x": x_min + 0.6, "z": zm}, {"type": "plant", "x": x_max - 0.6, "z": zm},
-                          {"type": "plant", "x": x_min + 0.6, "z": z_s0 + 1}, {"type": "plant", "x": x_max - 0.6, "z": z_s0 + 1}]}
+                          {"type": "plant", "x": x_min + 0.6, "z": z_s0 + 1}, {"type": "plant", "x": x_max - 0.6, "z": z_s0 + 1},
+                          *[{"type": "wall_art", "art": art, "x": x, "z": round(z_n1 - 0.1, 3), "face": "n"} for art, x in (("photo", x_min + 3.5), ("leaf", x_min + 10.5), ("photo", x_max - 10.5), ("stars", x_max - 3.5))],
+                          *[{"type": "wall_art", "art": art, "x": x, "z": round(z_s0 + 0.1, 3), "face": "s"} for art, x in (("waves", x_min + 3.5), ("photo", x_min + 10.5), ("books", x_max - 10.5), ("photo", x_max - 3.5))],
+                          {"type": "shoe_rack", "x": wx0 + 1.0, "z": round(z_s0 - 0.5, 3), "w": 1.2}]}
     rooms.append(hall)
     gaps = [{"axis": "h", "at": z, "a": round(a, 3), "b": round(a + HALL_DEPTH, 3)} for z in (z_n1, z_s0) for a in (wx0, wx1 - HALL_DEPTH)]
     for w, rect, mirror in ((wings[0], (x_min, z_n1, x_min + wing_w, z_s0), False), (wings[1], (x_max - wing_w, z_n1, x_max, z_s0), True)):
@@ -407,7 +430,7 @@ def build_layout(residents: list[dict[str, Any]], rooms: list[dict[str, Any]], t
     for i, r in enumerate(residents):
         rect = (x_min + i * bed_w, z_back0, x_min + (i + 1) * bed_w, z_hall0)
         rid = new_id(str(r["id"]))
-        room = _place(bed_tpl, rid, rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
+        room = _place(bedroom_style(r, bed_tpl), rid, rect, False, {"owner": str(r.get("name", r["id"])), "color": str(r.get("color", "#aaaaaa"))},
                       {"owner": r["id"], "template": "bedroom"})
         d = _door(bed_tpl, ["s"], False)
         room["door"] = {"wall": "s", "at": round((rect[0] + rect[2]) / 2 + (d[1] if d else 0), 3)}

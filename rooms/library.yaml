@@ -24,6 +24,8 @@ furniture:
   - {type: chess, x: 3.6, z: 2.6}
   - {type: chair, x: 2.6, z: 2.6, face: e}
   - {type: chair, x: 4.6, z: 2.6, face: w}
+  - {type: wall_art, art: stars, x: -0.9, z: "n+0.08"}
+  - {type: globe, x: -5.2, z: 3.8}
 spots:
   desk_a:  {x: 2.4, z: "n+1.35", label: 阅览室的电脑, face: n, pose: sit, tags: [pc]}
   desk_b:  {x: 4.4, z: "n+1.35", label: 阅览室的电脑, face: n, pose: sit, tags: [pc]}

@@ -64,6 +64,7 @@ export class World {
     this.rides = new Map();
     this.tickers = [];
     this.props = [];
+    this.wallArts = [];
     this.touchables = [];
     this.decor = new Map();
     this.onTouch = () => {};
@@ -232,7 +233,7 @@ export class World {
       grp.clear();
     }
     this.walls = []; this.windows = []; this.lamps = []; this.screens = []; this.pools = []; this.roomLights.clear(); this.rides.clear();
-    this.tickers = []; this.props = []; this.touchables = []; this.decor.clear();
+    this.tickers = []; this.props = []; this.wallArts = []; this.touchables = []; this.decor.clear();
     const [x0, z0, x1, z1] = layout.house;
     this.center = new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2);
     this.size = { w: x1 - x0, d: z1 - z0 };
@@ -339,6 +340,7 @@ export class World {
       });
       if (f.ride && obj.userData.ride) this.rides.set(f.ride, obj.userData.ride);
       this.props.push({ room: r.id, type: f.type, x: f.x, z: f.z, obj, on: false });
+      if (obj.userData.wallArt) this.wallArts.push(obj);
       if (obj.userData.tick) this.tickers.push(obj.userData.tick);
       if (obj.userData.touchKind) {
         obj.traverse((o) => { if (o.isMesh) o.userData.touchOf = { room: r.id, obj }; });
@@ -514,6 +516,12 @@ export class World {
         if (near) h = LOW_H;
       } else if (this.lowWalls) h = 0.8;
       if (Math.abs(w.body.scale.y - h) > 0.001) this.setWallHeight(w, h);
+    }
+    const [hx0, hz0, hx1, hz1] = this.layout.house, E = 0.5;
+    for (const a of this.wallArts) {
+      const { x, z } = a.position;
+      const cut = (hz1 - z < E && v.z > 0.25) || (z - hz0 < E && v.z < -0.25) || (hx1 - x < E && v.x > 0.25) || (x - hx0 < E && v.x < -0.25);
+      a.visible = !cut && !this.lowWalls;
     }
   }
 

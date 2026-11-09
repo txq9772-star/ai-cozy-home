@@ -20,6 +20,9 @@ furniture:
   - {type: lamp, x: "e-0.6", z: "s-0.7"}
   - {type: piano, x: 3.4, z: "n+0.7"}
   - {type: rug, x: 5.3, z: -2.2, w: 2.2, d: 1.5, color: "#7fa39a"}
+  - {type: wall_art, art: film, x: "w+0.08", z: -1.8, face: e}
+  - {type: wall_art, art: waves, x: "e-0.08", z: 1.6, face: w}
+  - {type: tall_plant, x: 0.6, z: "n+0.7"}
 spots:
   tv_a:   {x: -3.4, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}
   tv_b:   {x: -1.8, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}

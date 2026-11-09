@@ -58,7 +58,32 @@ function bed(s) {
   g.add(box(w, 0.9, 0.12, WOOD_D, 0, 0, -d / 2 + 0.06));
   g.add(box(w - 0.12, 0.2, d - 0.2, '#f4f1ec', 0, 0.32, 0.04));
   g.add(box(w * 0.55, 0.14, 0.45, '#ffffff', 0, 0.52, -d / 2 + 0.45));
-  g.add(box(w - 0.06, 0.08, d * 0.55, s.color || '#8fa4d8', 0, 0.52, d * 0.18));
+  const flat = box(w - 0.06, 0.08, d * 0.55, s.color || '#8fa4d8', 0, 0.52, d * 0.18);
+  g.add(flat);
+  // 有人睡觉时换成盖在身上的被子：一张网格，中间顺着身体隆起，两侧垂到床沿，靠枕头那头翻出一道浅色的边
+  const zs = -d / 2 + 0.88, zEnd = d / 2 - 0.02, len = zEnd - zs, zc = (zs + zEnd) / 2, W = w + 0.04;
+  const geo = new THREE.PlaneGeometry(W, len, 30, 40); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, zc);
+  const P = geo.attributes.position, cols = new Float32Array(P.count * 3);
+  const base = new THREE.Color(s.color || '#8fa4d8'), fold = base.clone().lerp(new THREE.Color('#ffffff'), 0.55), tmp = new THREE.Color();
+  const sm = (t) => { const k = Math.max(0, Math.min(1, t)); return k * k * (3 - 2 * k); };
+  const feet = zs + 1.55;
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), z = P.getZ(i);
+    const edge = sm((W / 2 - Math.abs(x)) / 0.2), foot = sm((zEnd - z) / 0.16);
+    const body = 0.38 * Math.exp(-(x * x) / 0.2) * sm((z - zs) / 0.28) * sm((feet - z) / 0.45);
+    const wrinkle = 0.012 * Math.sin(x * 8 + z * 5) * Math.sin(z * 7);
+    P.setY(i, 0.63 + body + wrinkle - (1 - edge) * 0.3 - (1 - foot) * 0.3);
+    tmp.copy(z < zs + 0.22 ? fold : base);
+    tmp.toArray(cols, i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  geo.computeVertexNormals();
+  const duvet = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide }));
+  duvet.castShadow = true; duvet.receiveShadow = true; duvet.visible = false;
+  g.add(duvet);
+  let t = 0;
+  g.userData.setUse = (on) => { duvet.visible = on; flat.visible = !on; };
+  g.userData.tick = (dt) => { if (duvet.visible) { t += dt; duvet.position.y = Math.sin(t * 1.5) * 0.006; } };
   return g;
 }
 
@@ -725,6 +750,29 @@ function gazebo(s) {
   return g;
 }
 
+// ---------------------------------------------------------------- 墙上和房间风格
+const ART = {
+  waves: (g) => { g.add(box(0.72, 0.5, 0.012, '#7fb9d6', 0, -0.25, 0.02), box(0.72, 0.15, 0.014, '#3f7fa8', 0, -0.25, 0.026), box(0.2, 0.07, 0.016, '#f2f0e8', 0.1, -0.08, 0.03)); },
+  books: (g) => { g.add(box(0.72, 0.5, 0.012, '#d9c9a8', 0, -0.25, 0.02)); ['#b9473c', '#3e6fb5', '#5d9b6a', '#e3b23c', '#8a6bbd'].forEach((c, i) => g.add(box(0.1, 0.3 + (i % 2) * 0.08, 0.016, c, -0.24 + i * 0.12, -0.2, 0.03))); },
+  stars: (g) => { g.add(box(0.72, 0.5, 0.012, '#2a3160', 0, -0.25, 0.02)); [[-0.2, -0.05], [0.15, 0.08], [0.25, -0.12], [-0.05, -0.15], [-0.26, 0.1]].forEach(([x, y]) => g.add(box(0.04, 0.04, 0.016, '#f6e3a8', x, y, 0.03))); },
+  film: (g) => { g.add(box(0.72, 0.5, 0.012, '#26242c', 0, -0.25, 0.02), box(0.48, 0.32, 0.014, '#d9574a', 0, -0.16, 0.026), box(0.2, 0.08, 0.016, '#f2c94c', 0, -0.05, 0.03)); },
+  leaf: (g) => { g.add(box(0.72, 0.5, 0.012, '#e8efd9', 0, -0.25, 0.02), box(0.04, 0.34, 0.016, '#5e8a44', 0, -0.17, 0.03)); for (const [x, y] of [[-0.12, 0.08], [0.12, 0.04], [-0.12, -0.06], [0.12, -0.1]]) g.add(box(0.2, 0.09, 0.016, '#6fa45a', x, y, 0.03)); },
+  photo: (g) => { g.add(box(0.72, 0.5, 0.012, '#f4eee0', 0, -0.25, 0.02)); [['#c98f6a', -0.2], ['#7fa39a', 0], ['#b58fd9', 0.2]].forEach(([c, x], i) => g.add(box(0.15, 0.2, 0.016, c, x, -0.14 - (i % 2) * 0.06, 0.03))); },
+};
+function wall_art(s) {
+  const g = new THREE.Group();
+  g.add(box(0.82, 0.6, 0.03, s.frame || WOOD_D, 0, 1.08, 0));
+  const art = new THREE.Group(); art.position.y = 1.68; (ART[s.art] || ART.photo)(art); g.add(art);
+  g.userData.wallArt = true;
+  return g;
+}
+function fishbowl() { const g = new THREE.Group(); g.add(box(0.5, 0.6, 0.5, WOOD_L, 0, 0, 0)); const w = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 12), new THREE.MeshStandardMaterial({ color: '#8fd0ea', transparent: true, opacity: 0.55, roughness: 0.1 })); w.position.y = 0.82; g.add(w); const f = box(0.1, 0.05, 0.03, '#ef8a3b', 0, 0.8, 0); g.add(f); let t = 0; g.userData.tick = (dt) => { t += dt; f.position.x = Math.sin(t * 0.8) * 0.09; f.rotation.y = Math.cos(t * 0.8) > 0 ? 0 : Math.PI; }; return g; }
+function globe() { const g = new THREE.Group(); g.add(box(0.46, 0.6, 0.46, WOOD_D, 0, 0, 0), box(0.04, 0.12, 0.04, METAL, 0, 0.6, 0)); const b = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), mat('#4f86b5')); b.position.y = 0.9; g.add(b); const c = box(0.2, 0.09, 0.2, '#6fa45a', 0.08, 0.92, 0.08); g.add(c); return g; }
+function tall_plant() { const g = new THREE.Group(); const p = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.18, 0.4, 8), mat('#d8cfc0')); p.position.y = 0.2; g.add(p); g.add(bar([0, 0.4, 0], [0, 1.4, 0], 0.03, '#6b4a33')); for (let i = 0; i < 7; i++) { const a = i * 0.9, m = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.62, 4), mat(i % 2 ? '#4f8d4a' : '#5f9f58')); m.position.set(Math.cos(a) * 0.26, 1.2 + (i % 3) * 0.15, Math.sin(a) * 0.26); m.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9); g.add(m); } return g; }
+function speaker() { const g = new THREE.Group(); g.add(box(0.44, 0.9, 0.4, '#2c2a33', 0, 0, 0)); for (const y of [0.25, 0.65]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.03, 12), mat('#55535e')); m.rotation.x = Math.PI / 2; m.position.set(0, y, 0.21); g.add(m); } return g; }
+function shoe_rack(s) { const g = new THREE.Group(), w = s.w || 1.4; g.add(box(w, 0.55, 0.36, WOOD_L, 0, 0, 0)); ['#c0504a', '#3e6fb5', '#efc24a', '#5d9b6a'].forEach((c, i) => { if (-w / 2 + 0.25 + i * 0.32 < w / 2 - 0.1) g.add(box(0.22, 0.09, 0.3, c, -w / 2 + 0.25 + i * 0.32, 0.55, 0)); }); return g; }
+function pot_rack(s) { const g = new THREE.Group(), w = s.w || 1.6; g.add(box(w, 0.05, 0.05, METAL, 0, 1.75, 0)); ['#b9473c', '#8a8fa3', '#e0a050', '#8a8fa3'].forEach((c, i) => { const x = -w / 2 + 0.25 + i * 0.36; g.add(box(0.02, 0.15, 0.02, METAL, x, 1.6, 0)); const m = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.1, 9), mat(c)); m.position.set(x, 1.55, 0.02); g.add(m); }); g.userData.wallArt = true; return g; }
+
 function unknown(s) {
   return box(s.w || 0.8, s.h || 0.6, s.d || 0.8, s.color || '#9a97a6');
 }
@@ -732,7 +780,7 @@ function unknown(s) {
 export const FURNITURE = {
   chair, desk, bed, shelf, bookshelf, sofa, armchair, table, coffee_table, rug, mat: mat_, lamp, plant, cabinet, fridge, counter, tv, beanbag, boxes,
   swing, seesaw, slide, carousel, sandbox, bench, lamp_post, fence,
-  tree_big, flowerbed, flowers, pad, hedge, path_stones, gazebo, piano, easel, chess, cat, lake, dock, book_pile, recipe, flower, painting, sheet, plush_duck, fish_trophy, dumbbell, poster, photo, cat_toy,
+  wall_art, fishbowl, globe, tall_plant, speaker, shoe_rack, pot_rack, tree_big, flowerbed, flowers, pad, hedge, path_stones, gazebo, piano, easel, chess, cat, lake, dock, book_pile, recipe, flower, painting, sheet, plush_duck, fish_trophy, dumbbell, poster, photo, cat_toy,
 };
 
 export function buildFurniture(spec) {

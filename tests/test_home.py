@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 
 from home import days, drivers, living, prompts  # noqa: E402
 from home import life as life_mod  # noqa: E402
-from home.layout import LayoutError, build_layout, load_templates, spots_index  # noqa: E402
+from home.layout import LayoutError, bedroom_style, build_layout, load_templates, spots_index  # noqa: E402
 from home.life import Life  # noqa: E402
 from home.store import Store  # noqa: E402
 
@@ -153,6 +153,14 @@ class LayoutTests(unittest.TestCase):
                 ax0, az0, ax1, az1 = a["rect"]
                 bx0, bz0, bx1, bz1 = b["rect"]
                 self.assertFalse(ax0 < bx1 - 1e-6 and bx0 < ax1 - 1e-6 and az0 < bz1 - 1e-6 and bz0 < az1 - 1e-6, (a["id"], b["id"]))
+
+    def test_bedroom_style_follows_persona_and_setting(self):
+        bed = TPL["bedroom"]
+        self.assertEqual(bedroom_style({"persona": "喜欢海洋和鲸鱼"}, bed)["floor"], bed["styles"]["ocean"]["floor"])
+        chosen = bedroom_style({"persona": "喜欢海洋", "room_style": "books"}, bed)
+        self.assertEqual(chosen["floor"], bed["styles"]["books"]["floor"])
+        self.assertTrue(any(f["type"] == "bookshelf" for f in chosen["furniture"]))
+        self.assertEqual(len(bedroom_style({}, bed)["spots"]), len(bed["spots"]))
 
     def test_few_bedrooms_keep_straight_row(self):
         rooms = ROOMS + [{"template": "lounge"}, {"template": "library"}]

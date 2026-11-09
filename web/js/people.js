@@ -40,6 +40,36 @@ const ANIM = {
   pet: (t) => ({ lean: 0.2 + s_(t * 3) * 0.06 }),
   tidy: (t) => ({ lean: 0.35 + s_(t * 2) * 0.2, roll: s_(t) * 0.06 }),
 };
+const D = Math.PI / 180;
+const both = (u, f) => ({ r: [u, f], l: [u, f] });
+const GESTURE = {
+  read: () => both(55, 70),
+  type: (t) => ({ r: [45, 55 + s_(t * 11) * 6], l: [45, 55 - s_(t * 11) * 6] }),
+  sip: (t) => (t % 5 < 1.2 ? { r: [70, 112], l: [8, 8] } : { r: [42, 50], l: [8, 8] }),
+  sweep: (t) => ({ r: [38 + s_(t * 4) * 18, 30], l: [28 + s_(t * 4) * 12, 42] }),
+  stir: (t) => ({ r: [58 + s_(t * 5) * 9, 44], l: [18, 25] }),
+  wash: (t) => ({ r: [50 + s_(t * 7) * 8, 42], l: [50 - s_(t * 7) * 8, 42] }),
+  water: () => ({ r: [78, 12], l: [10, 10] }),
+  stretch: (t) => (s_(t * 0.9) > 0 ? both(165, 8) : both(75, 8)),
+  paint: (t) => ({ r: [82 + s_(t * 3) * 14, 28], l: [12, 18] }),
+  piano: (t) => ({ r: [55, 38 + s_(t * 7) * 12], l: [55, 38 - s_(t * 8) * 12] }),
+  chess: (t) => (t % 6 < 1.3 ? { r: [68, 32], l: [20, 62] } : { r: [32, 72], l: [20, 62] }),
+  game: (t) => ({ r: [50, 72 + s_(t * 9) * 5], l: [50, 72 - s_(t * 8) * 5] }),
+  dance: (t) => ({ r: [110 + s_(t * 3) * 42, 38], l: [110 - s_(t * 3) * 42, 38] }),
+  wave: (t) => ({ r: [150 + s_(t * 9) * 14, 26], l: [6, 6] }),
+  clap: (t) => both(68, 58 + s_(t * 10) * 18),
+  yawn: (t) => (t % 3 < 1.5 ? { r: [122, 128], l: [6, 6] } : both(6, 6)),
+  feed: (t) => ({ r: [60 + Math.abs(s_(t * 2.2)) * 30, 12], l: [34, 62] }),
+  fish: (t) => both(42 + s_(t * 0.5) * 3, 30),
+  pet: (t) => ({ r: [60 + s_(t * 3) * 12, 20], l: [10, 10] }),
+  tidy: (t) => both(52 + s_(t * 2) * 15, 30),
+};
+const HOLDING = () => ({ r: [55, 66], l: [8, 8] });
+const AVOID = 0.66;
+const LIE_OFFSET = 0.45;
+const LIE_DROP = 0.12;
+const handQ = new THREE.Quaternion(), bodyQ = new THREE.Quaternion();
+
 function propMesh(kind) {
   const g = new THREE.Group();
   const add = (w, h, d, c, x = 0, y = 0, z = 0) => g.add(box(w, h, d, c, x, y, z));
@@ -160,6 +190,13 @@ export class People {
   spotOf(data) {
     const room = this.rooms?.get(data.room);
     const s = room?.spots?.[data.spot];
+    if (s && data.pose === 'lie') {          // 躺下时头放到枕头上；南排的床是反过来的
+      const bed = this.world.nearestProp(room.id, 'bed', s.x, s.z);
+      if (bed) {
+        const flip = Math.abs(bed.obj.rotation.y) > 1;
+        return { x: bed.x, z: bed.z + (flip ? LIE_OFFSET : -LIE_OFFSET), face: s.face, room: room.id, lieYaw: flip ? Math.PI : 0 };
+      }
+    }
     if (s) return { x: s.x, z: s.z, face: s.face, room: room.id, ride: s.ride, seat: s.seat ?? 0 };
     if (room) return { x: (room.rect[0] + room.rect[2]) / 2, z: (room.rect[1] + room.rect[3]) / 2, face: 's', room: room.id };
     return { x: 0, z: 0, face: 's', room: data.room };
@@ -215,10 +252,12 @@ export class People {
     const root = new THREE.Group();
     const p = { id: data.id, data, root, path: [], pos: root.position, yaw: 0, room: data.room };
     p.fx = new THREE.Group(); root.add(p.fx);
-    p.hold = new THREE.Group(); p.fx.add(p.hold);
+    p.hold = new THREE.Group();
+    p.gest = { r: [0, 0], l: [0, 0] };
     p.fxLean = 0; p.fxRoll = 0; p.fxY = 0; p.fxSy = 1; p.fxSpin = 0; p.t = Math.random() * 10; p.roamAt = 0;
     p.avatar = buildAvatar(data.avatar || {}, data.color);
     p.fx.add(p.avatar.root);
+    p.avatar.hand.add(p.hold);
     p.sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: data.images?.front ? tex('/skin/' + data.images.front) : null, color: data.images?.front ? '#fff' : data.color, transparent: true, alphaTest: 0.1 }));
     p.sprite.center.set(0.5, 0);
     p.sprite.scale.set(1.25, 1.75, 1);
@@ -251,6 +290,7 @@ export class People {
       p.fx.remove(p.avatar.root);
       p.avatar = model;
       p.fx.add(model.root);
+      model.hand.add(p.hold);
       this.applyLook(p);
       this.decorate(p);
     } catch (e) {
@@ -264,7 +304,7 @@ export class People {
     const s = this.spotOf(data);
     const target = [s.x, s.z];
     p.face = s.face;
-    p.rideId = s.ride; p.seat = s.seat;
+    p.rideId = s.ride; p.seat = s.seat; p.lieYaw = s.lieYaw ?? 0;
     if ((prev?.prop || '') !== (data.prop || '') || !p.propBuilt) {
       p.hold.clear();
       if (data.prop) p.hold.add(propMesh(data.prop));
@@ -273,7 +313,7 @@ export class People {
     const moved = !prev || prev.room !== data.room || prev.spot !== data.spot;
     if (instant || !this.rooms) {
       p.pos.set(target[0], 0, target[1]);
-      p.path = []; p.room = data.room;
+      p.path = []; p.room = data.room; p.backPt = null;
     } else if (moved) {
       p.path = this.route(p.room, data.room, target, [p.pos.x, p.pos.z]).map(([x, z]) => new THREE.Vector3(x, 0, z));
       p.room = data.room;
@@ -371,7 +411,9 @@ export class People {
         walking = p.path.length > 0;
       }
       const ride = !walking && p.rideId ? this.world.rides.get(p.rideId) : null;
-      let pose = walking ? 'walk' : (p.data.pose || 'stand');
+      if (walking) p.wasWalking = true;
+      else if (p.wasWalking) { p.wasWalking = false; p.settleAt = now + 320; }     // 先转过身，再坐下
+      let pose = walking ? 'walk' : (p.settleAt > now && !p.rideId ? 'stand' : (p.data.pose || 'stand'));
       if (ride) {
         ride.occ[p.seat] = true;
         ride.seats[p.seat]?.getWorldPosition(seatPos);
@@ -382,7 +424,7 @@ export class People {
         p.pos.y = this.groundY(p.pos.x, p.pos.z);
       }
       if (!p.path.length) {
-        p.yawTarget = ride?.yaw?.(p.seat) ?? (pose === 'lie' ? 0 : faceAngle(p.face));
+        p.yawTarget = ride?.yaw?.(p.seat) ?? (pose === 'lie' ? p.lieYaw : faceAngle(p.face));
         const other = p.faceId && now < p.faceUntil ? this.list.get(p.faceId) : null;
         if (other && !ride && pose !== 'lie') p.yawTarget = Math.atan2(other.pos.x - p.pos.x, other.pos.z - p.pos.z);
       }
@@ -403,6 +445,28 @@ export class People {
       const far = cam.position.distanceTo(p.pos) > 85;
       if (p.far !== far) { p.far = far; p.emoteEl.classList.toggle('far', far); p.tagEl.classList.toggle('far', far); }
       if (p.sprite.visible) this.spriteView(p, cam, walking, pose);
+    }
+    this.separate(now, dt);
+  }
+
+  // 走路时别穿过别人，迎面碰上会打个招呼
+  separate(now, dt) {
+    if (this.replaying) return;
+    const all = [...this.list.values()];
+    for (const a of all) {
+      if (!a.path.length) continue;
+      for (const b of all) {
+        if (a === b || b.rideId && !b.path.length) continue;
+        const dx = a.pos.x - b.pos.x, dz = a.pos.z - b.pos.z, d = Math.hypot(dx, dz);
+        if (d >= AVOID || d < 1e-4) continue;
+        const k = ((AVOID - d) * (b.path.length ? 0.5 : 1)) / d;
+        a.pos.x += dx * k; a.pos.z += dz * k;
+        if (b.path.length) { a.pos.x += (-dz / d) * dt * 1.6; a.pos.z += (dx / d) * dt * 1.6; }       // 都在走就各往右让一点，不会顶住
+        if (b.path.length && now > (a.nodAt || 0) && now > (b.nodAt || 0) && Math.random() < 0.25) {
+          a.nodAt = b.nodAt = now + 45000;
+          this.pop(a, '👋');
+        }
+      }
     }
   }
 
@@ -436,21 +500,40 @@ export class People {
     p.fxSpin += ((v.spin || 0) - p.fxSpin) * q;
     const c = Math.cos(p.yaw), n = Math.sin(p.yaw);
     p.fx.rotation.set(p.fxLean * c + p.fxRoll * n, 0, -p.fxLean * n + p.fxRoll * c);
-    p.fx.position.y = p.fxY;
+    p.fx.position.y = p.fxY - (pose === 'lie' && !walking ? LIE_DROP : 0);
     p.fx.scale.y = p.fxSy;
     const showing = !ride && pose !== 'lie' && p.avatar.root.visible && (!walking || d.roam);
     p.hold.visible = showing && d.status !== 'asleep';
-    p.hold.rotation.y = p.yaw;
-    const f = 0.28;
-    p.hold.position.set(n * f, pose === 'sit' ? 1.0 : pose === 'sit_floor' ? 0.55 : pose === 'sit_low' ? 0.85 : 0.98, c * f);
+    const gfn = fn ? (GESTURE[name] || (d.prop ? HOLDING : null)) : null;
+    const g = gfn ? gfn(p.t) : null;
+    const seat = pose.startsWith('sit') ? 0.75 : 1;
+    for (const side of ['r', 'l']) {
+      for (const i of [0, 1]) {
+        const to = g && !walking ? g[side][i] * D * (i ? 1 : seat) : 0;
+        p.gest[side][i] += (to - p.gest[side][i]) * q;
+      }
+    }
+    const idle = Math.abs(p.gest.r[0]) + Math.abs(p.gest.r[1]) + Math.abs(p.gest.l[0]) + Math.abs(p.gest.l[1]) < 0.004;
+    p.avatar.setGesture?.(idle ? null : p.gest);
+    if (p.hold.visible && p.hold.children.length) {                   // 东西跟着手走，但保持正着拿
+      p.avatar.root.updateWorldMatrix(true, true);
+      p.avatar.hand.getWorldQuaternion(handQ);
+      p.avatar.root.getWorldQuaternion(bodyQ);
+      p.hold.quaternion.copy(handQ.invert().multiply(bodyQ));
+    }
   }
 
   updateUses() {
     const want = new Map();
     for (const p of this.list.values()) {
       const d = p.data;
-      if (p.path.length || d.status === 'asleep' || d.status === 'offline') continue;
+      if (p.path.length || d.status === 'offline') continue;
       const s = this.rooms.get(d.room)?.spots?.[d.spot];
+      if (d.status === 'asleep') {
+        const bed = s && !p.sprite.visible && this.world.nearestProp(d.room, 'bed', s.x, s.z);
+        if (bed) want.set(bed, { x: p.pos.x, z: p.pos.z });
+        continue;
+      }
       for (const tag of s?.tags || []) {
         const type = USES[tag];
         const prop = type && this.world.nearestProp(d.room, type, s.x, s.z);
@@ -460,7 +543,7 @@ export class People {
     for (const prop of this.world.props) {
       if (!prop.obj.userData.setUse) continue;
       const u = want.get(prop), on = !!u;
-      if (on !== prop.on || on) { prop.on = on; prop.obj.userData.setUse(on, u); }
+      if (on !== prop.on || (on && prop.type !== 'bed')) { prop.on = on; prop.obj.userData.setUse(on, u); }
     }
   }
 

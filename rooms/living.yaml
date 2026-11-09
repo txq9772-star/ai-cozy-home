@@ -18,6 +18,9 @@ furniture:
   - {type: shelf, x: "e-0.4", z: -2.9, w: 0.6, d: 1.8, h: 1.4}
   - {type: mat, x: 2.6, z: "s-0.6", w: 1.4, d: 0.7}
   - {type: cat, x: 3.2, z: 0.5}
+  - {type: wall_art, art: photo, x: -2.6, z: "n+0.08"}
+  - {type: wall_art, art: leaf, x: 2.8, z: "n+0.08"}
+  - {type: tall_plant, x: "w+0.7", z: "s-0.8"}
 spots:
   sofa_a: {x: -1.7, z: 0.45, label: 沙发, face: s, pose: sit, tags: [sofa]}
   sofa_b: {x: 0.1, z: 0.45, label: 沙发, face: s, pose: sit, tags: [sofa]}

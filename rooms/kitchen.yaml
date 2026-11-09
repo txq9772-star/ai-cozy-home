@@ -14,6 +14,8 @@ furniture:
   - {type: chair, x: -1.3, z: 1.6, face: n}
   - {type: chair, x: -0.1, z: 1.6, face: n}
   - {type: plant, x: "w+0.6", z: "s-0.6"}
+  - {type: pot_rack, x: -0.4, z: "n+0.1", w: 1.7}
+  - {type: wall_art, art: leaf, x: "w+0.08", z: 0.9, face: e}
 spots:
   stove:  {x: -0.1, z: "n+1.25", label: 灶台, face: n, pose: stand, tags: [stove]}
   fridge: {x: "w+1.0", z: "n+1.6", label: 冰箱前, face: n, pose: stand, tags: [fridge]}

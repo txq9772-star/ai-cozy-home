@@ -17,6 +17,8 @@ furniture:
   - {type: armchair, x: -2.8, z: "s-1.1", face: s, color: "#7b5ea7"}
   - {type: cabinet, x: 1.9, z: "s-0.4", w: 3.0, d: 0.7, h: 0.9}
   - {type: plant, x: "e-0.45", z: "n+1.0"}
+  - {type: wall_art, art: books, x: 0.5, z: "s-0.08", face: n}
+  - {type: tall_plant, x: 0.4, z: "n+0.7"}
 spots:
   desk_1:  {x: -3.4, z: "n+1.35", label: 电脑桌, face: n, pose: sit, tags: [pc]}
   desk_2:  {x: -1.7, z: "n+1.35", label: 电脑桌, face: n, pose: sit, tags: [pc]}
