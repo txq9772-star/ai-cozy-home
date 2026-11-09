@@ -9,6 +9,7 @@ import hashlib
 import logging
 import random
 import re
+import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -105,6 +106,7 @@ class Life:
         self.delivering: set[int] = set()
         self.next_prune = 0.0
         self.party_day = ""
+        self.backup_day = ""
         self.party_at: tuple[str, float] = ("", 0.0)
         self.touch_at = 0.0
         self.budget_cache: tuple[float, str] = (0.0, "ok")
@@ -340,6 +342,10 @@ class Life:
     def _caught_in_rain(self, r: Resident) -> bool:
         return self.weather() == "rain" and bool((self._spot(r.room, r.spot) or {}).get("outdoor"))
 
+    def _must_come_in(self, r: Resident) -> bool:
+        """下雨或天黑了还待在露天的地方，就不等下一件事，马上回屋。"""
+        return bool((self._spot(r.room, r.spot) or {}).get("outdoor")) and (self.weather() == "rain" or not self.is_day())
+
     def _small_event(self, now: float) -> None:
         """偶尔发生点小事：一条动态、一个气泡、一条记忆，不调用模型。"""
         if self.paused or now < self.next_event:
@@ -559,17 +565,29 @@ class Life:
         kinds = self._day_weather(d)
         fest = self.festival(d)
         moments = [{"ts": f["ts"], "who": names.get(f["resident"], ""), "text": f["text"], "detail": f["detail"]}
-                   for f in feed if f["detail"] or f["kind"] in ("event", "note", "festival", "visit")][-8:]
+                   for f in feed if f["detail"] or f["kind"] in ("event", "note", "festival", "visit", "goal", "party", "movein")][-8:]
         said = "下了雨" if "rain" in kinds else "天气还行"
         lead = f"这天{said}" + (f"，是{fest}" if fest else "") + f"。大家一共做了 {sum(p['things'] for p in people)} 件事，群里说了 {len(chat)} 句话。"
         return {"day": day, "today": day == self.day(), "lead": lead, "weather": [days.WEATHER[k][1] for k in kinds], "festival": fest,
                 "residents": people, "moments": moments, "visits": sum(f["kind"] == "visit" for f in feed),
                 "notes": len(notes), "empty": not feed and not chat}
 
+    def _act_look(self, text: str, status: str) -> dict[str, str]:
+        """足迹里只有“在看书”这样的文字，回放时按文字找回动作和表情。"""
+        none = {"anim": "", "emote": "", "prop": ""}
+        if status in ("asleep", "offline"):
+            return none
+        rows = [*self.activities.values(), *living.GATHERINGS]
+        hits = [a for a in rows if a.get("label") and str(a["label"]) in str(text)]
+        if not hits:
+            return none
+        a = max(hits, key=lambda x: len(str(x["label"])))
+        return {"anim": str(a.get("anim") or ""), "emote": str(a.get("emote") or ""), "prop": str(a.get("prop") or "")}
+
     def _traced_row(self, row: dict[str, Any]) -> dict[str, Any]:
         s = self._spot(row["room"], row["spot"]) or {}
         return {"ts": row["ts"], "id": row["resident"], "room": row["room"], "spot": row["spot"], "status": row["status"],
-                "activity": row["activity"], "place": self.place_name(row["room"], row["spot"]),
+                "activity": row["activity"], "place": self.place_name(row["room"], row["spot"]), **self._act_look(row["activity"], row["status"]),
                 "pose": "lie" if row["status"] == "asleep" else s.get("pose", "stand")}
 
     def replay(self, day: str | None = None) -> dict[str, Any]:
@@ -638,7 +656,7 @@ class Life:
                 r.next_at = now_ts + random.uniform(1, 8) * self.minute
                 self.changed(r)
                 self.add_feed(r, "wake", "起床了", room=r.room, spot="rug")
-            elif r.status == "idle" and not self.paused and (now_ts >= r.next_at or self._caught_in_rain(r)):
+            elif r.status == "idle" and not self.paused and (now_ts >= r.next_at or self._must_come_in(r)):
                 self.start_activity(r)
         self._check_weather()
         self._check_festival()
@@ -649,6 +667,7 @@ class Life:
         self._needs_tick(now_ts)
         self._fidget(now_ts)
         self._party_check(now_ts)
+        self._backup_check()
         if now_ts >= self.next_prune:
             self.next_prune = now_ts + 86400
             self.store.prune_trace()
@@ -845,6 +864,21 @@ class Life:
             near = [o for o in self.residents.values() if o is not r and o.room == r.room and o.status in ("idle", "busy")]
             face = random.choice(near).id if near and random.random() < 0.5 else ""
             self.emit("act", {"id": r.id, "anim": anim, "emote": emote, "face": face})
+
+    def _backup_check(self) -> None:
+        day = self.day()
+        if day != self.backup_day and int(self.life.get("backup_keep", 7)) > 0:
+            self.backup_day = day
+            self.pool.submit(self._backup, day)
+
+    def _backup(self, day: str) -> None:
+        folder = self.data_dir / "backups"
+        try:
+            self.store.backup(folder / f"home-{day}.db")
+            for old in sorted(folder.glob("home-*.db"))[:-int(self.life.get("backup_keep", 7))]:
+                old.unlink()
+        except (OSError, sqlite3.Error):
+            log.exception("备份存档失败")
 
     def _usable_goals(self) -> set[str]:
         out = set()

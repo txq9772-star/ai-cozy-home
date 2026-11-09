@@ -208,7 +208,7 @@ export class People {
     const p = this.list.get(row.id);
     if (!p) return;
     const { ts, ...state } = row;
-    this.place(p, { ...p.data, ...state, typing: false, anim: '', emote: '', prop: '', roam: false }, jump);
+    this.place(p, { ...p.data, anim: '', emote: '', prop: '', ...state, roam: false, typing: false }, jump);
     this.decorate(p);
     this.refreshRoomLights();
   }

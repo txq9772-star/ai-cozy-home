@@ -791,6 +791,42 @@ class LivingTests(unittest.TestCase):
         row = next(p for p in w["residents"] if p["id"] == "ac")
         self.assertEqual(row["things"], 1)
 
+    def test_night_sends_people_inside(self):
+        self.ac.room, self.ac.spot = "lake", "feed_a"
+        with patch.object(self.life, "is_day", return_value=False):
+            self.assertTrue(self.life._must_come_in(self.ac))
+        with patch.object(self.life, "is_day", return_value=True):
+            self.assertFalse(self.life._must_come_in(self.ac))
+            self.ac.room, self.ac.spot = "living", "sofa_a"
+            self.assertFalse(self.life._must_come_in(self.ac))
+
+    def test_daily_shows_goals_and_parties(self):
+        self.store.add_feed("ac", "goal", "读完一本厚书")
+        self.store.add_feed("", "party", "大家一起吃了顿饭")
+        texts = [m["text"] for m in self.life.daily()["moments"]]
+        self.assertIn("读完一本厚书", texts)
+        self.assertIn("大家一起吃了顿饭", texts)
+
+    def test_replay_brings_back_actions(self):
+        self.ac.room, self.ac.spot = "library", "arm_a"
+        self.ac.status, self.ac.activity = "idle", "在看书"
+        self.life.changed(self.ac)
+        row = next(x for x in self.life.replay()["trace"] if x["id"] == "ac")
+        self.assertEqual((row["anim"], row["prop"]), ("read", "book"))
+        self.assertEqual(self.life._act_look("和阿G下棋", "idle")["anim"], "chess")
+        self.assertEqual(self.life._act_look("睡觉", "asleep")["anim"], "")
+
+    def test_backup_keeps_recent_copies(self):
+        self.store.add_feed("ac", "activity", "备份要带上这条")
+        self.life.life["backup_keep"] = 2
+        for day in ("2026-01-01", "2026-01-02", "2026-01-03"):
+            self.life._backup(day)
+        files = sorted(p.name for p in (Path(self.tmp.name) / "backups").glob("*.db"))
+        self.assertEqual(files, ["home-2026-01-02.db", "home-2026-01-03.db"])
+        copy = sqlite3.connect(Path(self.tmp.name) / "backups" / files[-1])
+        self.addCleanup(copy.close)
+        self.assertEqual(copy.execute("SELECT COUNT(*) FROM feed").fetchone()[0], 1)
+
     def test_new_resident_gets_move_in_feed(self):
         cfg = {**self.life.cfg, "residents": [*CFG["residents"], {"id": "glm", "name": "阿智", "color": "#00aa88"}]}
         layout = build_layout(cfg["residents"], ROOMS, TPL, None, 8)

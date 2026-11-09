@@ -86,6 +86,16 @@ class Store:
             cur = self.db.execute(sql, args)
             return cur.lastrowid
 
+    def backup(self, dest: Path) -> None:
+        """在线备份整个存档，写到 dest。"""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        target = sqlite3.connect(str(dest))
+        try:
+            with self.lock:
+                self.db.backup(target)
+        finally:
+            target.close()
+
     # ------------------------------------------------------------ 动态
     def add_feed(self, resident: str, kind: str, text: str, room: str = "", spot: str = "", detail: str = "",
                  title: str = "", url: str = "") -> dict[str, Any]:
