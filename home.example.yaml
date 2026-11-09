@@ -24,6 +24,7 @@ life:
   idle_think_factor: 0.3      # 没人看时写感想的概率乘这个数
   idle_slow_factor: 1.5       # 没人看时换活动的间隔乘这个数
   max_chat_per_minute: 6      # 住户之间一分钟最多说这么多句，@ 到的人和回你的话不受影响
+  backup_keep: 7              # 每天备份一次存档到 data/backups/，保留几份，0 = 不备份
   move_in: false              # true = 设置里出现「办入住」，能在页面上加 OpenAI 兼容接口的住户
   # budget: {calls: 300, cost: 5}             # 全屋每天的预算，不写或写 0 不限。过八成少写感想，用完只回你的话；cost 要给 driver 配 price
   # weather: {rain: 0.18, cloudy: 0.27}       # 模拟天气的概率，每 6 小时变一次，不联网
