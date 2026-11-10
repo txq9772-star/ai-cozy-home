@@ -76,7 +76,7 @@ scripts/run_home.sh --mock --fast
 
 立绘放进 `skin/characters/`；侧面图要朝右。没有立绘也行，立绘模式下她会显示成 3D 小人。
 
-**3D 模型**：住户配置写 `model: models/<id>.glb`（文件放 `skin/models/`）就用 glb 模型，没写或加载失败时用下面的程序小人。四个住户的模型由图生 3D 的高模处理而来：`blender -b -P tools/avatars/import_ai.py -- <id> 源文件.glb`（减面、烘法线、绑骨骼、闭眼、动画，新住户要先在脚本的 `SPECS` 里写好关键位置）。模型要有骨骼动画 `idle` `walk` `sit` `sit_floor` `lie` 和形态键 `eyes_closed`。
+**3D 模型**：住户配置写 `model: models/<id>.glb`（文件放 `skin/models/`）就用 glb 模型，没写或加载失败时用下面的程序小人。`skin/models/` 里现成的有 ac、ag、ayu、ak、az、aq，另有暂时没上线的 hjm（哈基米）和 grok。这些模型由图生 3D 的高模处理而来：先 `blender -b -P tools/avatars/check_render.py -- 输出目录 <id>=源文件.glb` 渲出带网格的检查图，在图上量好头顶、下巴、腰、臀、裙摆、手臂、眼睛的像素写进 `tools/avatars/import_ai.py` 的 `SPECS`，再 `blender -b -P tools/avatars/import_ai.py -- <id> 源文件.glb`（减面、烘法线、绑骨骼、闭眼、动画，预览图出在 `tools/avatars/previews/`）。模型要有骨骼动画 `idle` `walk` `sit` `sit_floor` `lie` 和形态键 `eyes_closed`。
 
 **程序小人外形**：`avatar` 里的颜色和 `accents` 配件列表决定。现有配件：`flower` 发花、`bow` 蝴蝶结、`book` 抱着的书、`horns` 龙角、`wings` 翅膀、`tail` 尾巴、`maid_headband` 女仆头饰、`fins` 耳边鱼鳍、`apron` 围裙、`whale_tail` 发尾小鲸尾、`k_pin` K 字发卡。新配件在 `web/js/avatar.js` 的 `ACCESSORIES` 里加一个函数。
 
@@ -190,7 +190,7 @@ ai-cozy-home/
 
 ## 素材说明
 
-`skin/` 里四位住户的立绘和 3D 模型由 AI 工具生成后加工而成。名字里的 Claude、GPT、DeepSeek、Kimi 等只用来标注接入的模型，这些商标归各自所有者，本项目与它们没有关联。代码以 MIT 许可证发布，three.js 的许可见 `web/vendor/three/LICENSE`。
+`skin/` 里住户的立绘和 3D 模型由 AI 工具生成后加工而成。名字里的 Claude、GPT、DeepSeek、Kimi 等只用来标注接入的模型，这些商标归各自所有者，本项目与它们没有关联。代码以 MIT 许可证发布，three.js 的许可见 `web/vendor/three/LICENSE`。
 
 ## 已知限制
 

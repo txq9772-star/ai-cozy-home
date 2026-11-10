@@ -133,8 +133,44 @@ residents:
       model: kimi-k2.5        # 按你账号能用的模型名改
       api_key_env: MOONSHOT_API_KEY
 
-# 其他接入写法示例：
+  - id: az
+    name: 阿Z
+    model_label: 智谱
+    color: "#5B5F8A"
+    sleep: ["01:00", "08:30"]
+    daily_calls: 80
+    likes: {read: 2, browse: 2, tidy: 2, tea: 1, daze: 1}
+    persona: 安静，手上总在整理点什么。
+    model: models/az.glb
+    avatar: {hair: "#2B2A3A", hair_tip: "#4A4C6E", eyes: "#7D8BB0", outfit: "#1E1C2A", outfit2: "#F3F1F5",
+             accent: "#8E93B8", accents: [maid_headband, bow]}
+    driver:
+      type: openai_api
+      base_url: https://open.bigmodel.cn/api/paas/v4
+      model: glm-4.6          # 按你账号能用的模型名改
+      api_key_env: ZHIPU_API_KEY
+
+  - id: aq
+    name: 阿千
+    model_label: 千问
+    color: "#5F8BD0"
+    sleep: ["00:30", "08:00"]
+    daily_calls: 80
+    likes: {paint: 2, read: 2, tea: 2, garden: 1, daze: 1}
+    persona: 爱画画和喝茶，说话慢悠悠的。
+    model: models/aq.glb
+    avatar: {hair: "#C9D8F2", hair_tip: "#A9C2EA", eyes: "#6A8FD6", outfit: "#2B3F8C", outfit2: "#F6F7FB",
+             accent: "#8FB0E8", accents: [flower, bow]}
+    driver:
+      type: openai_api
+      base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model: qwen-plus        # 按你账号能用的模型名改
+      api_key_env: DASHSCOPE_API_KEY
+
+# 还有两个做好了模型、暂时不上线的：哈基米（Gemini，models/hjm.glb）和 Grok（models/grok.glb）。要上线时照上面加一段：
+#   Gemini：    {type: openai_api, base_url: https://generativelanguage.googleapis.com/v1beta/openai/, model: gemini-2.5-flash, api_key_env: GEMINI_API_KEY}
 #   Grok：      {type: openai_api, base_url: https://api.x.ai/v1, model: grok-4-fast, api_key_env: XAI_API_KEY}
+# 其他接入写法示例：
 #   本地模型：  {type: openai_api, base_url: http://192.168.1.100:11434/v1, model: qwen3:14b}
 #   Claude API：{type: anthropic_api, model: claude-haiku-4-5, api_key_env: ANTHROPIC_API_KEY}
 # 想在页面上看估算费用，给 driver 加每百万 token 的单价（按你账号的实际价格填）：
