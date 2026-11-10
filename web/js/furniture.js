@@ -598,7 +598,7 @@ function lake(s) {
   blob(0.3, 0.024, mat('#3f7f94'));
   const wm = new THREE.MeshStandardMaterial({ color: '#58a9cc', roughness: 0.2, metalness: 0.1, emissive: '#16405a', emissiveIntensity: 0.28 });
   blob(0, 0.036, wm);
-  const IS = [5.6, 2.3];
+  const IS = [rx * 0.42, rz * 0.3];
   const isle = (r2, y, c) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r2 + 0.15, 0.14, 18), mat(c)); m.position.set(IS[0], y, IS[1]); m.receiveShadow = true; g.add(m); };
   isle(1.9, 0.08, '#cdbd8d'); isle(1.45, 0.16, '#6f9a4f');
   const islandTree = tree_big({ s: 0.8 }); islandTree.position.set(IS[0], 0.18, IS[1]); g.add(islandTree);
@@ -623,6 +623,7 @@ function lake(s) {
   const add = (kind, x, z, lead) => { const o = bird(kind); g.add(o); const b = { kind, o, x, z, h: r() * 6.28, tx: x, tz: z, wait: r() * 3, lead }; birds.push(b); return b; };
   const mom = add('duck', -5, 1); add('duckling', -5.7, 1.4, mom); add('duckling', -6.3, 1.7, birds[1]); add('duckling', -6.9, 2.0, birds[2]);
   add('duck', 3, -2); add('duck', 6, 2.5);
+  if (rx > 13) { const m2 = add('duck', -9, -1); add('duckling', -9.6, -0.6, m2); add('duck', 9, -2.5); add('swan', -2, 3.5); }
   const sw = add('swan', 1, 2.5); add('swan', 2.3, 3.4, sw);
   let t = 0, food = null, foodT = 0, sparkle = 0;
   const callTo = (x, z, secs) => { food = [x, z]; foodT = secs; };
@@ -661,9 +662,17 @@ function lake(s) {
 
 function dock(s) {
   const g = new THREE.Group();
-  const len = s.len || 3;
-  for (let i = 0; i < Math.round(len / 0.34); i++) g.add(box(1.3, 0.07, 0.3, i % 2 ? '#a57c52' : '#b58c60', 0, 0.22, -len / 2 + 0.17 + i * 0.34));
-  for (const sx of [-1, 1]) for (const k of [-0.48, 0.48]) g.add(box(0.1, 0.4, 0.1, '#6e4a33', sx * 0.55, -0.05, k * len));
+  const len = s.len || 3, w = s.w || 1.3;
+  for (let i = 0; i < Math.round(len / 0.34); i++) g.add(box(w, 0.07, 0.3, i % 2 ? '#a57c52' : '#b58c60', 0, 0.22, -len / 2 + 0.17 + i * 0.34));
+  for (const sx of [-1, 1]) for (const k of [-0.48, 0.48]) g.add(box(0.1, 0.62, 0.1, '#6e4a33', sx * (w / 2 - 0.08), -0.33, k * len));
+  g.userData.deck = { w, len, top: 0.29 };      // 人走上来要站在木板上
+  return g;
+}
+
+function basket() {
+  const g = new THREE.Group();
+  g.add(box(0.5, 0.26, 0.34, '#b5884f', 0, 0, 0), box(0.52, 0.03, 0.36, '#e0574a', 0, 0.26, 0));
+  g.add(bar([-0.2, 0.28, 0], [-0.1, 0.5, 0], 0.02, '#8a6238'), bar([-0.1, 0.5, 0], [0.1, 0.5, 0], 0.02, '#8a6238'), bar([0.1, 0.5, 0], [0.2, 0.28, 0], 0.02, '#8a6238'));
   return g;
 }
 
@@ -780,7 +789,7 @@ function unknown(s) {
 export const FURNITURE = {
   chair, desk, bed, shelf, bookshelf, sofa, armchair, table, coffee_table, rug, mat: mat_, lamp, plant, cabinet, fridge, counter, tv, beanbag, boxes,
   swing, seesaw, slide, carousel, sandbox, bench, lamp_post, fence,
-  wall_art, fishbowl, globe, tall_plant, speaker, shoe_rack, pot_rack, tree_big, flowerbed, flowers, pad, hedge, path_stones, gazebo, piano, easel, chess, cat, lake, dock, book_pile, recipe, flower, painting, sheet, plush_duck, fish_trophy, dumbbell, poster, photo, cat_toy,
+  wall_art, fishbowl, globe, tall_plant, speaker, shoe_rack, pot_rack, tree_big, flowerbed, flowers, pad, hedge, path_stones, gazebo, piano, easel, chess, cat, lake, dock, basket, book_pile, recipe, flower, painting, sheet, plush_duck, fish_trophy, dumbbell, poster, photo, cat_toy,
 };
 
 export function buildFurniture(spec) {

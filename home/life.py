@@ -35,6 +35,7 @@ SMALL_TALK = [("今天吃什么？", "冰箱里好像还有点。"), ("你刚才
 OUTSIDE_TALK = ("等下要不要去荡秋千？", "行啊，你先去占位置。")
 VISIT_GAP_MINUTES = 240       # 隔这么久再打开页面，才算又来了一趟
 EVENT_MINUTES = (90, 240)
+LEFTOVER_HOURS = 10           # 做的菜放这么久还算剩菜，别人找吃的会吃到
 NOTE_TO_OWNER_CHANCE = 0.15   # 主人不在时，每次写感想有多大概率允许留言
 NOTE_NO_QUOTA = "看到了，今天额度用完了，明天再好好回你。"
 BLOCKS = 24 // days.BLOCK_HOURS
@@ -75,6 +76,8 @@ class Resident:
         self.anim = self.emote = self.prop = ""
         self.roam = False
         self.last_act = ""
+        self.thing = self.doing = self.thing_of = ""     # 这件事具体在弄什么：thing 给页面看，doing 是给模型的一句话，thing_of 记着是哪件事的
+        self.last_thing: dict[str, str] = {}
         self.mood_key = ""
         self.next_fidget = time.time() + random.uniform(20, 90)
         self.call_lock = threading.Lock()
@@ -106,6 +109,7 @@ class Life:
         self.delivering: set[int] = set()
         self.next_prune = 0.0
         self.party_day = ""
+        self.kitchen = {}
         self.backup_day = ""
         self.party_at: tuple[str, float] = ("", 0.0)
         self.touch_at = 0.0
@@ -115,6 +119,7 @@ class Life:
         self.paused = bool(saved.get("paused", self.life.get("pause", False)))
         self.festival_said = str(saved.get("festival_said", ""))
         self.party_day = str(saved.get("party_day", ""))
+        self.kitchen: dict[str, Any] = dict(saved.get("kitchen") or {})
         owner = self.store.load_state("__owner__")
         self.last_visit, self.last_seen = float(owner.get("last_visit", 0)), float(owner.get("last_seen", 0))
         self.visits = int(owner.get("visits", 0))
@@ -230,6 +235,8 @@ class Life:
             return ""
         if who is not None and s.get("owner") == who.id:
             return f"自己房间的{s['label']}"
+        if str(s["label"]).startswith(str(s["room_name"])):     # 「休息室的沙发」这种已经带了房间名
+            return str(s["label"])
         return f"{s['room_name']}的{s['label']}"
 
     def public(self, r: Resident) -> dict[str, Any]:
@@ -239,7 +246,7 @@ class Life:
             "id": r.id, "name": r.name, "model_label": r.cfg.get("model_label", ""), "color": r.cfg.get("color", "#999"),
             "access": r.driver.access, "access_label": r.driver.label, "ready": r.ready, "ready_info": r.ready_info,
             "status": r.status, "room": r.room, "spot": r.spot, "pose": "lie" if r.status == "asleep" else s.get("pose", "stand"),
-            "place": self.place_name(r.room, r.spot), "activity": r.activity, "since": r.since, "typing": r.typing,
+            "place": self.place_name(r.room, r.spot), "activity": r.activity, "thing": self._thing_now(r), "since": r.since, "typing": r.typing,
             "note": r.note, "calls_today": use["calls"], "fails_today": use["fails"], "daily_calls": r.daily_calls,
             "bedroom": r.bedroom, "images": r.cfg.get("images") or {}, "avatar": r.cfg.get("avatar") or {},
             "model": r.cfg.get("model") or "", "anim": r.anim, "emote": r.emote, "prop": r.prop, "roam": r.roam,
@@ -337,7 +344,8 @@ class Life:
             self.emit("home", self.home_info())
 
     def _save_home(self) -> None:
-        self.store.save_state("__home__", {"paused": self.paused, "festival_said": self.festival_said, "party_day": self.party_day})
+        self.store.save_state("__home__", {"paused": self.paused, "festival_said": self.festival_said, "party_day": self.party_day,
+                                           "kitchen": self.kitchen})
 
     def _caught_in_rain(self, r: Resident) -> bool:
         return self.weather() == "rain" and bool((self._spot(r.room, r.spot) or {}).get("outdoor"))
@@ -771,14 +779,50 @@ class Life:
         o = self.residents.get(rid)
         return bool(o and o.ready and o.status == "idle" and o.room == o.bedroom)
 
-    def _set_act(self, r: Resident, aid: str, act: dict[str, Any]) -> None:
+    def _set_act(self, r: Resident, aid: str, act: dict[str, Any], thing: str = "", doing: str = "") -> None:
         r.anim, r.emote, r.prop = str(act.get("anim") or ""), str(act.get("emote") or ""), str(act.get("prop") or "")
         r.roam = bool(act.get("roam"))
         r.last_act = aid
+        r.thing, r.doing, r.thing_of = thing, doing, r.activity if thing else ""
         living.give(r.needs, act.get("gives"))
 
     def _clear_act(self, r: Resident) -> None:
         r.anim, r.emote, r.prop, r.roam = "", "", "", False
+        r.thing = r.doing = r.thing_of = ""
+
+    def _thing_now(self, r: Resident) -> str:
+        return r.thing if r.thing and r.thing_of == r.activity else ""
+
+    def _doing(self, r: Resident) -> str:
+        """给模型看的「在做什么」：有具体东西就说具体的，比如「在做番茄炒蛋」。"""
+        return r.doing if r.doing and r.thing_of == r.activity else r.activity
+
+    def _pick_thing(self, r: Resident, aid: str, act: dict[str, Any]) -> str:
+        """这次具体弄什么。厨房的事连着：做的菜会剩下，别人找吃的会吃到，用过的锅有人洗。"""
+        k, role, now = self.kitchen, act.get("kitchen"), time.time()
+        fresh = bool(k.get("dish")) and now - float(k.get("at", 0)) < LEFTOVER_HOURS * 3600
+        if role == "eat" and fresh and int(k.get("left", 0)) > 0 and random.random() < 0.7:
+            k["left"] = int(k["left"]) - 1
+            self._save_home()
+            cook = self.residents.get(str(k.get("by")))
+            return f"{'自己' if k.get('by') == r.id else (cook.name if cook else '别人')}做剩下的{k['dish']}"
+        if role == "wash" and k.get("dirty"):
+            k["dirty"] = False
+            self._save_home()
+            return f"做{k.get('dish')}用过的锅和碗"
+        things = [str(x) for x in act.get("things") or [] if x]
+        if not things:
+            return ""
+        thing = random.choice([x for x in things if x != r.last_thing.get(aid)] or things)
+        r.last_thing[aid] = thing
+        if role == "cook":
+            self.kitchen = {"dish": thing, "by": r.id, "at": now, "left": random.randint(1, 3), "dirty": True}
+            self._save_home()
+        return thing
+
+    @staticmethod
+    def _doing_text(act: dict[str, Any], thing: str) -> str:
+        return str(act["doing"]).replace("{thing}", thing) if thing and act.get("doing") else ""
 
     def start_activity(self, r: Resident, forced: str | set[str] | None = None) -> str:
         choices = self._choices(r, forced)
@@ -801,17 +845,19 @@ class Life:
         if item:
             self.store.mark_item(r.id, item.key)
         think = bool(act.get("think")) and self._think_now(r)
+        thing = self._pick_thing(r, aid, act)
+        doing = self._doing_text(act, thing)
         r.room, r.spot, r.since = spot["room"], spot["spot"], time.time()
         r.activity = f"在{act.get('label', aid)}"
         r.status = "busy" if think else "idle"
         r.next_at = time.time() + self._activity_gap()
-        self._set_act(r, aid, act)
+        self._set_act(r, aid, act, thing, f"在{doing}" if doing else "")
         self.changed(r)
         self._progress(r, aid)
         if act.get("visit"):
             self._visited(r, spot)
         place = self.place_name(r.room, r.spot, r)
-        text = self._feed_text(act, place, item)
+        text = self._feed_text(act, place, item, thing)
         if think:
             self.pool.submit(self._think, r, act, place, text, item)
         else:
@@ -951,16 +997,19 @@ class Life:
         g, room, spots = random.choice(options)
         random.shuffle(spots)
         joined = people[: len(spots)]
+        thing = self._party_thing(g)
         until = time.time() + self._activity_gap() * 1.2
         for who, spot in zip(joined, spots):
             who.room, who.spot, who.since, who.next_at = spot["room"], spot["spot"], time.time(), until
             who.activity = f"在{g['label']}"
             who.anim, who.emote, who.prop, who.roam = g["anim"], g["emote"], g["prop"], False
+            who.thing, who.thing_of = thing, who.activity if thing else ""
+            who.doing = "在" + g["doing"].replace("{thing}", thing) if thing and g.get("doing") else ""
             living.give(who.needs, {"social": 30, "fun": 25})
             self.changed(who)
         names = "、".join(w.name for w in joined)
         room_name = next(s["room_name"] for s in spots)
-        text = f"{names}{g['text'].replace('{room}', room_name)}"
+        text = f"{names}{g['text'].replace('{room}', room_name)}" + (g.get("detail", "").replace("{thing}", thing) if thing else "")
         self.add_feed(None, "party", text, room=room)
         for i, a in enumerate(joined):
             self.remember(a, text, "together")
@@ -971,6 +1020,19 @@ class Life:
             who = joined[i % len(joined)]
             threading.Timer((1.5 if self.fast else 8.0) * (i + 1), lambda w=who, t=line: self.emit("bubble", {"id": w.id, "text": t})).start()
         return text
+
+    def _party_thing(self, g: dict[str, Any]) -> str:
+        if g.get("key") == "dinner":           # 一起吃饭：有刚做好的菜就吃那个，吃完算洗碗的
+            k = self.kitchen
+            if k.get("dish") and time.time() - float(k.get("at", 0)) < LEFTOVER_HOURS * 3600:
+                dish = str(k["dish"])
+                k["left"], k["dirty"] = 0, True
+            else:
+                dish = random.choice([str(x) for x in (self.activities.get("cook") or {}).get("things") or ["几个家常菜"]])
+                self.kitchen = {"dish": dish, "by": "", "at": time.time(), "left": 0, "dirty": True}
+            self._save_home()
+            return dish
+        return random.choice(g.get("things") or [""])
 
     def touch(self, room: str, kind: str) -> dict[str, Any]:
         """主人点了屋里的东西：在场的人有点反应。不调用模型。"""
@@ -1032,14 +1094,18 @@ class Life:
             who.room, who.spot, who.since = spot["room"], spot["spot"], time.time()
             who.status, who.next_at = "busy" if think else "idle", until
         r.activity, partner.activity = f"和{partner.name}{label}", f"和{r.name}{label}"
-        for who in (r, partner):
-            self._set_act(who, aid, act)
+        thing = self._pick_thing(r, aid, act)
+        doing = self._doing_text(act, thing)
+        for who, other in ((r, partner), (partner, r)):
+            self._set_act(who, aid, act, thing, f"和{other.name}{doing}" if doing else "")
+        if doing:
+            label = doing
         self.changed(r)
         self.changed(partner)
         self._progress(r, aid)
         self._progress(partner, aid)
         place = self.place_name(r.room, r.spot, r)
-        text = self._feed_text(act, place, None).replace("{with}", partner.name).replace("{festival}", self.festival())
+        text = self._feed_text(act, place, None, thing).replace("{with}", partner.name).replace("{festival}", self.festival())
         if think:
             self.pool.submit(self._together, r, partner, label, place, text)
         else:
@@ -1136,9 +1202,9 @@ class Life:
             self.emit("memory", {"resident": r.id})
 
     @staticmethod
-    def _feed_text(act: dict[str, Any], place: str, item: Item | None) -> str:
-        t = str(act.get("text") or "在{place}" + act.get("label", ""))
-        return (t.replace("{place}", place).replace("{app}", str(act.get("app", "")))
+    def _feed_text(act: dict[str, Any], place: str, item: Item | None, thing: str = "") -> str:
+        t = str((act.get("text_thing") if thing else None) or act.get("text") or "在{place}" + act.get("label", ""))
+        return (t.replace("{place}", place).replace("{thing}", thing).replace("{app}", str(act.get("app", "")))
                 .replace("{title}", item.title if item else "").replace("{site}", (item.site if item else "") or "网上"))
 
     def _think(self, r: Resident, act: dict[str, Any], place: str, text: str, item: Item | None) -> None:
@@ -1152,9 +1218,9 @@ class Life:
             system = self._system(r)
             recent = [f["text"] for f in self.store.last_feed_of(r.id, 3)]
             chat = self.store.list_chat(8)
-            query = " ".join([r.activity, item.title if item else "", *(c["text"] for c in chat[-3:])])
+            query = " ".join([self._doing(r), item.title if item else "", *(c["text"] for c in chat[-3:])])
             leave_note = self.owner_away() and random.random() < NOTE_TO_OWNER_CHANCE and not self.store.unread_from(r.id, "owner")
-            prompt = prompts.activity_prompt(self.clock(), place, r.activity, item, self.store.recall_memory(r.id, query),
+            prompt = prompts.activity_prompt(self.clock(), place, self._doing(r), item, self.store.recall_memory(r.id, query),
                                              recent, chat, self.names(), self.home_info()["owner"], self.clock, leave_note)
             gen = self._call(r, system, prompt, "json")
         finally:
@@ -1325,7 +1391,7 @@ class Life:
             system = self._system(r)
             chat = self.store.list_chat(15)
             memories = self.store.recall_memory(r.id, " ".join(c["text"] for c in chat[-3:]), 4)
-            prompt = prompts.chat_prompt(self.clock(), self.place_name(r.room, r.spot), r.activity, chat,
+            prompt = prompts.chat_prompt(self.clock(), self.place_name(r.room, r.spot), self._doing(r), chat,
                                          self.names(), self.home_info()["owner"], self.clock, asleep, mentioned, memories)
             gen = self._call(r, system, prompt, "line")
         finally:

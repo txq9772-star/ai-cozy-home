@@ -1,33 +1,40 @@
 # 户外模板：湖。接在游乐场南边，湖里的鸭子和天鹅写在 web/js/furniture.js 的 lake 里。
+# 栈桥（dock）上人会站在木板上；spot 的 y 是坐下以后身子再往下放多少，坐在桥头腿就垂到水面上。
 name: 湖边
 icon: lake
 kind: outdoor
-size: [30, 18]
-label: [-12.2, "n+1.0"]
+size: [42, 24]
+label: [16.5, "n+1.0"]
 furniture:
-  - {type: path_stones, x: 0, z: 0, pts: [[0, -9], [0.4, -8], [-2.4, -7.0], [-6.8, -7.2], [-8.4, -7.0]]}
-  - {type: path_stones, x: 0, z: 0, pts: [[0.4, -8], [3.2, -7.2], [4, -6.2], [4, -5.5]]}
-  - {type: path_stones, x: 0, z: 0, pts: [[3.2, -7.2], [8.5, -7.6]]}
-  - {type: lake, x: 0, z: 1, w: 22, d: 12}
-  - {type: dock, x: 4, z: -3.8, len: 3.2}
-  - {type: gazebo, x: -10.2, z: -6.6}
-  - {type: bench, x: 9.5, z: -7.2, face: s}
-  - {type: tree_big, x: -13.2, z: 5, s: 1.05}
-  - {type: tree_big, x: 13.6, z: -5.2}
-  - {type: tree_big, x: 13.4, z: 6.8, s: 0.9}
-  - {type: tree_big, x: -5.5, z: 8.2, s: 0.85}
-  - {type: flowers, x: -3, z: -8.3, w: 5, d: 0.8}
-  - {type: flowers, x: 6.5, z: -8.4, w: 4, d: 0.7}
-  - {type: flowers, x: 2.5, z: 8.2, w: 6, d: 0.9}
-  - {type: lamp_post, x: -6, z: -8.1}
-  - {type: lamp_post, x: 7, z: -8.1}
+  - {type: path_stones, x: 0, z: 0, pts: [[0, -12], [0.4, -10.6], [-4, -9.4], [-9.5, -9.6], [-13.4, -9.4]]}
+  - {type: path_stones, x: 0, z: 0, pts: [[0.4, -10.6], [3.6, -9.6], [5, -8.4], [5, -7.2]]}
+  - {type: path_stones, x: 0, z: 0, pts: [[3.6, -9.6], [10.5, -10], [16, -9.4]]}
+  - {type: lake, x: 0, z: 2.2, w: 30, d: 15}
+  - {type: dock, x: 5, z: -4.6, len: 4.2, w: 1.9}
+  - {type: gazebo, x: -15.2, z: -9.2}
+  - {type: bench, x: 12, z: -9.9, face: s}
+  - {type: bench, x: -7, z: -10.2, face: s}
+  - {type: tree_big, x: -19.2, z: 6, s: 1.05}
+  - {type: tree_big, x: 19.2, z: -9.2}
+  - {type: tree_big, x: 19, z: 9.6, s: 0.9}
+  - {type: tree_big, x: -8, z: 11, s: 0.85}
+  - {type: tree_big, x: 9, z: 11.2, s: 0.8}
+  - {type: flowers, x: -3, z: -11.3, w: 5, d: 0.8}
+  - {type: flowers, x: 7, z: -11.3, w: 4, d: 0.7}
+  - {type: flowers, x: 0, z: 11.3, w: 8, d: 0.9}
+  - {type: lamp_post, x: -4.6, z: -10.9}
+  - {type: lamp_post, x: 8.5, z: -10.9}
 spots:
-  feed_a:  {x: -4, z: -5.9, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
-  feed_b:  {x: -1.2, z: -5.9, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
-  dock:    {x: 4, z: -2.9, label: 栈桥, face: s, pose: sit_floor, tags: [fish]}
-  walk_a:  {x: 14.3, z: 1, label: 湖岸, face: w, pose: stand, tags: [lake_path]}
-  walk_b:  {x: -14.2, z: 1, label: 湖岸, face: e, pose: stand, tags: [lake_path]}
-  gaz_a:   {x: -10.8, z: -6.7, label: 湖边的亭子, face: s, pose: sit, tags: [bench]}
-  gaz_b:   {x: -9.6, z: -6.7, label: 湖边的亭子, face: s, pose: sit, tags: [bench]}
-  bench_c: {x: 8.9, z: -7.1, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
-  bench_d: {x: 10.1, z: -7.1, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  feed_a:  {x: -7,   z: -6.9, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
+  feed_b:  {x: -3.6, z: -6.9, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
+  feed_c:  {x: 0.6,  z: -7.1, label: 湖边, face: s, pose: stand, tags: [lake_feed]}
+  dock:    {x: 4.5,  z: -2.85, label: 栈桥, face: s, pose: sit, y: -0.5, tags: [fish]}
+  dock_b:  {x: 5.5,  z: -2.85, label: 栈桥, face: s, pose: sit, y: -0.5, tags: [fish]}
+  walk_a:  {x: 19.6, z: 2, label: 湖岸, face: w, pose: stand, tags: [lake_path]}
+  walk_b:  {x: -19.6, z: 2, label: 湖岸, face: e, pose: stand, tags: [lake_path]}
+  gaz_a:   {x: -15.8, z: -9.3, label: 湖边的亭子, face: s, pose: sit, tags: [bench]}
+  gaz_b:   {x: -14.6, z: -9.3, label: 湖边的亭子, face: s, pose: sit, tags: [bench]}
+  bench_c: {x: 11.4, z: -9.8, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  bench_d: {x: 12.6, z: -9.8, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  bench_e: {x: -7.6, z: -10.1, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}
+  bench_f: {x: -6.4, z: -10.1, label: 湖边的长椅, face: s, pose: sit, tags: [bench]}

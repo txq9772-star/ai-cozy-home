@@ -740,6 +740,45 @@ class LivingTests(unittest.TestCase):
         self.assertEqual(len(rooms), 1)
         self.assertEqual(self.store.list_feed(1)[0]["kind"], "party")
 
+    def test_kitchen_things_carry_over(self):
+        ag = self.life.residents["ag"]
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            self.life.start_activity(self.ac, "cook")
+            dish = self.life.kitchen["dish"]
+            self.assertIn(dish, ACTS["cook"]["things"])
+            self.assertEqual(self.life.public(self.ac)["thing"], dish)
+            self.assertIn(dish, self.life._doing(self.ac))
+            self.life.kitchen["left"] = 1
+            with patch("home.life.random.random", return_value=0.0):
+                self.life.start_activity(ag, "snack")
+            self.assertEqual(ag.thing, f"阿C做剩下的{dish}")
+            self.assertEqual(self.life.kitchen["left"], 0)
+            self.life.start_activity(ag, "wash")
+            self.assertIn(dish, ag.thing)
+            self.assertFalse(self.life.kitchen["dirty"])
+        self.assertIn(dish, " ".join(f["text"] for f in self.store.list_feed(10)))
+        ag.activity = "睡觉"
+        self.assertEqual(self.life.public(ag)["thing"], "")
+
+    def test_gatherings_have_room_for_a_crowd(self):
+        spots = spots_index(self.layout)
+        for g in living.GATHERINGS:
+            rooms = Counter(s["room"] for s in spots if set(g["tags"]) & set(s["tags"]) and not s["owner"])
+            self.assertGreaterEqual(max(rooms.values()), 6, g["key"])
+
+    def test_place_name_does_not_repeat_room(self):
+        self.assertEqual(self.life.place_name("lounge", "sofa_a"), "休息室的长沙发")
+        self.assertEqual(self.life.place_name("kitchen", "stove"), "厨房的灶台")
+
+    def test_fishing_spot_is_on_the_dock(self):
+        lake = next(r for r in self.layout["rooms"] if r.get("template") == "lake")
+        dock = next(f for f in lake["furniture"] if f["type"] == "dock")
+        for s in (v for v in lake["spots"].values() if "fish" in v["tags"]):
+            self.assertLess(abs(s["x"] - dock["x"]), dock["w"] / 2)
+            self.assertLess(abs(s["z"] - dock["z"]), dock["len"] / 2)
+            self.assertEqual(s["pose"], "sit")
+            self.assertLess(s["y"], 0)
+
     def test_party_stays_inside_when_raining(self):
         self.life.weather_force = ("rain", time.time() + 3600)
         with patch("home.life.threading.Timer", ImmediateTimer):

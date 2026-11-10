@@ -9,17 +9,23 @@ label: [0, -0.4]
 furniture:
   - {type: fridge, x: "w+0.6", z: "n+0.55", w: 1.0, d: 0.9, h: 2.1}
   - {type: counter, x: -0.9, z: "n+0.45", w: 4.4, d: 0.8, stove_at: 0.8}
-  - {type: table, x: -0.7, z: 0.75, w: 2.2, d: 1.2}
-  - {type: chair, x: -0.7, z: "n+2.75", face: s}
-  - {type: chair, x: -1.3, z: 1.6, face: n}
-  - {type: chair, x: -0.1, z: 1.6, face: n}
+  - {type: table, x: -0.2, z: 0.85, w: 3.2, d: 1.1}
+  - {type: chair, x: -1.2, z: -0.05, face: s}
+  - {type: chair, x: -0.2, z: -0.05, face: s}
+  - {type: chair, x: 0.8, z: -0.05, face: s}
+  - {type: chair, x: -1.2, z: 1.75, face: n}
+  - {type: chair, x: -0.2, z: 1.75, face: n}
+  - {type: chair, x: 0.8, z: 1.75, face: n}
   - {type: plant, x: "w+0.6", z: "s-0.6"}
   - {type: pot_rack, x: -0.4, z: "n+0.1", w: 1.7}
   - {type: wall_art, art: leaf, x: "w+0.08", z: 0.9, face: e}
 spots:
-  stove:  {x: -0.1, z: "n+1.25", label: 灶台, face: n, pose: stand, tags: [stove]}
-  fridge: {x: "w+1.0", z: "n+1.6", label: 冰箱前, face: n, pose: stand, tags: [fridge]}
-  table:  {x: -0.7, z: "n+2.75", label: 餐桌, face: s, pose: sit, tags: [table]}
-  table_b: {x: -1.3, z: 1.55, label: 餐桌, face: n, pose: sit, tags: [table]}
-  table_c: {x: -0.1, z: 1.55, label: 餐桌, face: n, pose: sit, tags: [table]}
+  stove:   {x: -0.1, z: "n+1.25", label: 灶台, face: n, pose: stand, tags: [stove]}
+  fridge:  {x: "w+1.0", z: "n+1.6", label: 冰箱前, face: n, pose: stand, tags: [fridge]}
   sink:    {x: -2.6, z: "n+1.25", label: 水槽, face: n, pose: stand, tags: [sink]}
+  table:   {x: -1.2, z: -0.1, label: 餐桌, face: s, pose: sit, tags: [table]}
+  table_b: {x: -0.2, z: -0.1, label: 餐桌, face: s, pose: sit, tags: [table]}
+  table_c: {x: 0.8, z: -0.1, label: 餐桌, face: s, pose: sit, tags: [table]}
+  table_d: {x: -1.2, z: 1.8, label: 餐桌, face: n, pose: sit, tags: [table]}
+  table_e: {x: -0.2, z: 1.8, label: 餐桌, face: n, pose: sit, tags: [table]}
+  table_f: {x: 0.8, z: 1.8, label: 餐桌, face: n, pose: sit, tags: [table]}

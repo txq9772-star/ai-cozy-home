@@ -13,6 +13,8 @@
 #   emote   头顶的小图标；anim 身体动作；prop 手里拿的东西（都在 web/js/people.js）
 #   roam    true = 做的时候在屋里走来走去
 #   visit   true = 去别人房间串门，spots 不用写
+#   things  这次具体弄的东西，随机挑一个：做的什么菜、泡的什么茶。text_thing 是有 {thing} 时用的写法，doing 是给模型看的「在做什么」
+#   kitchen cook 做的菜会剩下 / eat 优先吃剩菜 / wash 洗做饭用过的锅
 #   gives   做这件事补多少需求：energy 精力、hunger 饱腹、social 社交、fun 开心。缺得越多越想做
 # 用到户外位置的活动下雨时不会去。
 # 住户配置里的 likes 是各自的偏好权重，没写的活动按 weight 算。
@@ -65,6 +67,10 @@ cook:
   label: 做饭
   spots: [stove]
   text: "在{place}做了点吃的"
+  doing: "做{thing}"
+  text_thing: "在{place}做了{thing}"
+  things: [番茄炒蛋, 葱油拌面, 皮蛋瘦肉粥, 土豆炖牛肉, 可乐鸡翅, 蛋炒饭, 紫菜蛋花汤, 麻婆豆腐, 清炒时蔬, 一锅饺子, 鲜虾云吞, 咖喱饭]
+  kitchen: cook
   think: true
   emote: "🍳"
   anim: stir
@@ -75,6 +81,10 @@ snack:
   label: 找吃的
   spots: [fridge, table]
   text: "在{place}找了点吃的"
+  doing: "吃{thing}"
+  text_thing: "在{place}吃了{thing}"
+  things: [半盒草莓, 一根香蕉, 两片吐司抹花生酱, 一杯酸奶, 一包薯片, 几块饼干, 一个苹果, 一块蛋糕]
+  kitchen: eat
   think: false
   emote: "🍙"
   anim: sip
@@ -84,6 +94,9 @@ tidy:
   label: 收拾东西
   spots: [boxes]
   text: "在{place}收拾了一会儿"
+  doing: "收拾{thing}"
+  text_thing: "在{place}收拾了{thing}"
+  things: [一箱旧书, 缠在一起的数据线, 过季的衣服, 一堆快递盒]
   think: false
   emote: "📦"
   anim: tidy
@@ -103,6 +116,9 @@ tea:
   label: 喝点东西
   spots: [sofa, table, window]
   text: "在{place}泡了杯喝的"
+  doing: "泡{thing}"
+  text_thing: "在{place}泡了{thing}"
+  things: [一杯茉莉花茶, 一杯热可可, 一杯美式, 一杯大麦茶, 一杯蜂蜜柚子茶, 一杯热牛奶]
   think: false
   emote: "🍵"
   anim: sip
@@ -164,6 +180,10 @@ wash:
   label: 洗碗
   spots: [sink]
   text: "在{place}把碗洗了"
+  doing: "洗{thing}"
+  text_thing: "在{place}洗了{thing}"
+  things: [几个杯子, 早上的碗, 水果盘]
+  kitchen: wash
   think: false
   emote: "🫧"
   anim: wash
@@ -174,6 +194,9 @@ water:
   label: 浇花
   spots: [water]
   text: "去{place}浇了浇花"
+  doing: "给{thing}浇水"
+  text_thing: "去{place}给{thing}浇了水"
+  things: [绿萝, 龟背竹, 多肉, 薄荷, 小番茄苗]
   think: false
   emote: "💧"
   anim: water
@@ -185,6 +208,9 @@ tidy_room:
   label: 整理房间
   spots: [tidyroom]
   text: "把{place}整理了一下"
+  doing: "整理{thing}"
+  text_thing: "把{place}的{thing}整理了一下"
+  things: [书桌, 衣柜, 床头柜, 书架]
   think: false
   emote: "🧺"
   anim: tidy
@@ -195,6 +221,9 @@ paint:
   label: 画画
   spots: [easel]
   text: "在{place}画了一会儿"
+  doing: "画{thing}"
+  text_thing: "在{place}画了{thing}"
+  things: [窗外的树, 湖里的天鹅, 一盘水果, 自己的猫, 傍晚的云]
   think: true
   emote: "🎨"
   anim: paint
@@ -206,6 +235,9 @@ piano:
   label: 弹琴
   spots: [piano]
   text: "在{place}弹了几段"
+  doing: "弹{thing}"
+  text_thing: "在{place}弹了{thing}"
+  things: [几首练习曲, 一首慢的小夜曲, 一首老歌, 一段自己编的旋律]
   think: true
   emote: "🎹"
   anim: piano
@@ -216,6 +248,9 @@ pet_cat:
   label: 逗猫
   spots: [pet]
   text: "在{place}逗了会儿猫"
+  doing: "用{thing}逗猫"
+  text_thing: "在{place}用{thing}逗了会儿猫"
+  things: [逗猫棒, 一个毛线球, 激光笔, 纸团]
   think: false
   emote: "🐱"
   anim: pet
@@ -258,6 +293,9 @@ garden:
   label: 打理花坛
   spots: [court_garden]
   text: "在{place}打理了一会儿"
+  doing: "{thing}"
+  text_thing: "在{place}{thing}"
+  things: [给月季剪枝, 拔杂草, 给花松土, 把倒了的花扶起来]
   think: false
   daytime: true
   emote: "🌷"
@@ -300,6 +338,9 @@ sand:
   label: 玩沙子
   spots: [sand]
   text: "在{place}堆了个小沙堆"
+  doing: "堆{thing}"
+  text_thing: "在{place}堆了{thing}"
+  things: [一座城堡, 一只乌龟, 一条隧道, 一个大蛋糕]
   think: false
   weight: 0.4
   daytime: true
@@ -312,6 +353,9 @@ feed_ducks:
   label: 喂鸭子
   spots: [lake_feed]
   text: "在{place}喂了鸭子"
+  doing: "用{thing}喂鸭子"
+  text_thing: "在{place}用{thing}喂了鸭子"
+  things: [面包屑, 玉米粒, 菜叶子]
   think: true
   weight: 0.9
   daytime: true
@@ -324,6 +368,9 @@ fishing:
   label: 钓鱼
   spots: [fish]
   text: "在{place}坐着钓了会儿鱼"
+  doing: "钓鱼"
+  text_thing: "在{place}坐着钓了会儿鱼，{thing}"
+  things: [钓上来一条小鲫鱼，又放回去了, 一条也没钓到, 鱼漂动了好几次，都没咬住, 钓上来一只小虾]
   think: true
   weight: 0.7
   daytime: true
@@ -393,6 +440,9 @@ chess:
   label: 下棋
   spots: [chess]
   text: "和{with}在{place}下了一盘棋"
+  doing: "下{thing}"
+  text_thing: "和{with}在{place}下了一盘{thing}"
+  things: [象棋, 围棋, 国际象棋, 五子棋]
   think: true
   weight: 0.7
   together: true
@@ -404,6 +454,9 @@ game:
   label: 打游戏
   spots: [tv]
   text: "和{with}在{place}打了几局游戏"
+  doing: "玩{thing}"
+  text_thing: "和{with}在{place}玩了几局{thing}"
+  things: [赛车游戏, 双人闯关游戏, 格斗游戏, 派对小游戏]
   think: true
   weight: 0.7
   together: true
@@ -423,3 +476,47 @@ decorate:
   festival: true
   emote: "🎀"
   gives: {social: 18, fun: 18}
+
+# ---------- 草坪
+kite:
+  label: 放风筝
+  spots: [kite]
+  doing: "放{thing}"
+  text: "在{place}放了会儿风筝"
+  text_thing: "在{place}放{thing}，飞得挺高"
+  things: [一只红色的菱形风筝, 一只燕子风筝, 一只长尾巴的风筝]
+  think: true
+  weight: 0.7
+  daytime: true
+  weather: clear
+  emote: "🪁"
+  anim: look
+  prop: kite
+  gives: {fun: 20, energy: -4}
+
+lawn_sit:
+  label: 在草坪上坐坐
+  spots: [lawn_sit]
+  doing: "在草坪上坐着吃{thing}"
+  text: "在{place}坐了会儿"
+  text_thing: "在{place}坐着吃了{thing}"
+  things: [一个三明治, 一盒草莓, 半个西瓜, 一袋小面包]
+  think: false
+  weight: 0.8
+  daytime: true
+  emote: "🧺"
+  anim: sip
+  gives: {fun: 10, hunger: 15, energy: 5}
+
+frisbee:
+  label: 扔飞盘
+  spots: [disc]
+  text: "和{with}在{place}扔了会儿飞盘"
+  think: true
+  weight: 0.7
+  daytime: true
+  together: true
+  emote: "🥏"
+  anim: wave
+  prop: disc
+  gives: {social: 20, fun: 22, energy: -8}

@@ -9,10 +9,14 @@ label: [0, "s-1.0"]
 furniture:
   - {type: rug, x: -2.6, z: -1.6, w: 5.2, d: 3.4, color: "#b98a6a"}
   - {type: tv, x: -2.6, z: "n+0.4", w: 2.6}
-  - {type: sofa, x: -2.6, z: -0.3, w: 3.4, d: 1.1, face: n, color: "#8a6f9e"}
-  - {type: rug, x: 2.6, z: 2.2, w: 5.0, d: 3.6, color: "#8fa8a0"}
+  - {type: sofa, x: -2.6, z: -0.3, w: 3.6, d: 1.1, face: n, color: "#8a6f9e"}
+  - {type: mat, x: -3.6, z: -2.4, w: 0.8, d: 0.8, color: "#c9984a"}
+  - {type: mat, x: -1.6, z: -2.4, w: 0.8, d: 0.8, color: "#7fa39a"}
+  - {type: rug, x: 2.6, z: 2.4, w: 6.4, d: 4.0, color: "#8fa8a0"}
   - {type: sofa, x: 2.6, z: 0.9, w: 3.6, d: 1.1, face: s, color: "#5f8a84"}
   - {type: coffee_table, x: 2.6, z: 2.6, w: 1.8, d: 0.9}
+  - {type: armchair, x: 0.1, z: 2.6, face: e, color: "#a8503f"}
+  - {type: armchair, x: 5.1, z: 2.6, face: w, color: "#a8503f"}
   - {type: beanbag, x: -4.4, z: 3.0, color: "#c9984a"}
   - {type: beanbag, x: -2.2, z: 3.2, color: "#c0504a"}
   - {type: plant, x: "w+0.6", z: "n+0.6"}
@@ -24,13 +28,19 @@ furniture:
   - {type: wall_art, art: waves, x: "e-0.08", z: 1.6, face: w}
   - {type: tall_plant, x: 0.6, z: "n+0.7"}
 spots:
-  tv_a:   {x: -3.4, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}
-  tv_b:   {x: -1.8, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}
-  sofa_a: {x: 1.7, z: 1.1, label: 休息室的长沙发, face: s, pose: sit, tags: [sofa]}
-  sofa_b: {x: 3.5, z: 1.1, label: 休息室的长沙发, face: s, pose: sit, tags: [sofa]}
+  tv_a:   {x: -3.8, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}
+  tv_b:   {x: -2.6, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}
+  tv_c:   {x: -1.4, z: -0.5, label: 休息室的沙发, face: n, pose: sit, tags: [tv]}
+  mat_a:  {x: -3.6, z: -2.4, label: 电视前的坐垫, face: n, pose: sit_floor, tags: [tv]}
+  mat_b:  {x: -1.6, z: -2.4, label: 电视前的坐垫, face: n, pose: sit_floor, tags: [tv]}
+  sofa_a: {x: 1.4, z: 1.1, label: 休息室的长沙发, face: s, pose: sit, tags: [sofa]}
+  sofa_b: {x: 2.6, z: 1.1, label: 休息室的长沙发, face: s, pose: sit, tags: [sofa]}
+  sofa_c: {x: 3.8, z: 1.1, label: 休息室的长沙发, face: s, pose: sit, tags: [sofa]}
+  arm_w:  {x: 0.3, z: 2.6, label: 休息室的扶手椅, face: e, pose: sit, tags: [sofa]}
+  arm_e:  {x: 4.9, z: 2.6, label: 休息室的扶手椅, face: w, pose: sit, tags: [sofa]}
   bean_a: {x: -4.4, z: 3.0, label: 懒人沙发, face: s, pose: sit_low, tags: [beanbag]}
   bean_b: {x: -2.2, z: 3.2, label: 懒人沙发, face: s, pose: sit_low, tags: [beanbag]}
   piano:  {x: 3.4, z: "n+1.75", label: 钢琴, face: n, pose: sit, tags: [piano]}
   yoga:   {x: 5.3, z: -2.2, label: 软垫上, face: s, pose: stand, tags: [yoga]}
-  floor:  {x: 0.6, z: 3.5, label: 休息室, face: s, pose: stand, tags: [floor]}
+  floor:  {x: -0.6, z: 4.6, label: 休息室, face: s, pose: stand, tags: [floor]}
   water:  {x: "w+1.3", z: "n+0.75", label: 角落的花, face: w, pose: stand, tags: [water]}

@@ -66,6 +66,13 @@ const GESTURE = {
 };
 const HOLDING = () => ({ r: [55, 66], l: [8, 8] });
 const AVOID = 0.66;
+const kiteHand = new THREE.Vector3();
+const GATE_WAIT = 1.1;        // 离门口这么近才排队
+const GATE_GIVEUP = 6000;
+const STUCK_MS = 2500;        // 这么久没离下一个点更近，就当被挡住了     // 等这么久（毫秒）还过不去就直接走
+const gate = (pt, id, dir) => Object.assign(pt, { gate: id, dir });
+const pass = (pt, id) => Object.assign(pt, { pass: id });
+const vecs = (pts) => pts.map((q) => Object.assign(new THREE.Vector3(q[0], 0, q[1]), q.gate ? { gate: q.gate, dir: q.dir } : {}, q.pass ? { pass: q.pass } : {}));
 const LIE_OFFSET = 0.45;
 const LIE_DROP = 0.12;
 const handQ = new THREE.Quaternion(), bodyQ = new THREE.Quaternion();
@@ -83,11 +90,23 @@ function propMesh(kind) {
     case 'brush': add(0.02, 0.02, 0.26, '#a57c52'); add(0.04, 0.03, 0.06, '#d9574a', 0, 0, 0.15); break;
     case 'bag': add(0.2, 0.2, 0.12, '#d9b969'); break;
     case 'pad': add(0.22, 0.05, 0.12, '#3a3c48'); break;
+    case 'kite': add(0.12, 0.12, 0.12, '#d9b969'); break;      // 手里是线轴，风筝本身在 kiteMesh 里，飘在人前上方
+    case 'disc': { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.03, 16), new THREE.MeshStandardMaterial({ color: '#f29a4a' })); d.rotation.z = Math.PI / 2; g.add(d); break; }
     case 'rod': { g.add(box(0.025, 0.025, 1.9, '#6e4a33', 0, 0.35, 0.95)); g.children[0].rotation.x = -0.35; const line = box(0.006, 1.3, 0.006, '#e8e8e8', 0, -0.72, 1.82); g.add(line); break; }
     default: break;
   }
   return g;
 }
+function kiteMesh() {
+  const g = new THREE.Group();
+  const k = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), new THREE.MeshStandardMaterial({ color: '#e0574a', roughness: 0.7 }));
+  k.scale.set(1, 1.3, 0.1); g.add(k);
+  for (let i = 0; i < 4; i++) { const t = box(0.12, 0.06, 0.02, i % 2 ? '#f6c84c' : '#5aa7c9', 0, -0.7 - i * 0.22, 0); t.rotation.z = i % 2 ? 0.4 : -0.4; g.add(t); }
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: '#f4f4f4' }));
+  line.frustumCulled = false;
+  return { g, line };
+}
+
 const loader = new THREE.TextureLoader();
 const texCache = new Map();
 function tex(url, flip = false) {
@@ -171,13 +190,13 @@ export class People {
     for (const id of A) {
       if (id === common) break;
       const d = this.doorPts(this.rooms.get(id));
-      if (d) pts.push(d.inside, d.door, d.outside);
+      if (d) pts.push(gate(d.inside, id, 'out'), d.door, pass(d.outside, id));
     }
     const down = [];
     for (const id of B) {
       if (id === common) break;
       const d = this.doorPts(this.rooms.get(id));
-      if (d) down.unshift([d.outside, d.door, d.inside]);
+      if (d) down.unshift([gate(d.outside, id, 'in'), d.door, pass(d.inside, id)]);
     }
     if (common === this.layout.hall && this.rooms.get(common)?.parts && pts.length && down.length) {
       pts.push(...this.detour(common, pts[pts.length - 1], down[0][0]).slice(0, -1));
@@ -197,7 +216,7 @@ export class People {
         return { x: bed.x, z: bed.z + (flip ? LIE_OFFSET : -LIE_OFFSET), face: s.face, room: room.id, lieYaw: flip ? Math.PI : 0 };
       }
     }
-    if (s) return { x: s.x, z: s.z, face: s.face, room: room.id, ride: s.ride, seat: s.seat ?? 0 };
+    if (s) return { x: s.x, z: s.z, face: s.face, room: room.id, ride: s.ride, seat: s.seat ?? 0, y: s.y };
     if (room) return { x: (room.rect[0] + room.rect[2]) / 2, z: (room.rect[1] + room.rect[3]) / 2, face: 's', room: room.id };
     return { x: 0, z: 0, face: 's', room: data.room };
   }
@@ -304,18 +323,22 @@ export class People {
     const s = this.spotOf(data);
     const target = [s.x, s.z];
     p.face = s.face;
-    p.rideId = s.ride; p.seat = s.seat; p.lieYaw = s.lieYaw ?? 0;
+    p.rideId = s.ride; p.seat = s.seat; p.lieYaw = s.lieYaw ?? 0; p.seatY = s.y || 0;
     if ((prev?.prop || '') !== (data.prop || '') || !p.propBuilt) {
       p.hold.clear();
       if (data.prop) p.hold.add(propMesh(data.prop));
       p.propBuilt = true;
+      if (p.kite) { p.root.remove(p.kite.g, p.kite.line); p.kite = null; }
+      if (data.prop === 'kite') { p.kite = kiteMesh(); p.root.add(p.kite.g, p.kite.line); }
     }
     const moved = !prev || prev.room !== data.room || prev.spot !== data.spot;
     if (instant || !this.rooms) {
       p.pos.set(target[0], 0, target[1]);
       p.path = []; p.room = data.room; p.backPt = null;
+      this.leaveGate(p);
     } else if (moved) {
-      p.path = this.route(p.room, data.room, target, [p.pos.x, p.pos.z]).map(([x, z]) => new THREE.Vector3(x, 0, z));
+      this.leaveGate(p);
+      p.path = vecs(this.route(p.room, data.room, target, [p.pos.x, p.pos.z]));
       p.room = data.room;
       p.backPt = null;
     }
@@ -384,11 +407,21 @@ export class People {
     this.world.lightRooms(on);
   }
 
-  // 门外是下两级台阶到草地
+  // 门外是下两级台阶到草地；栈桥这类木板台子上要站高一点
   groundY(x, z) {
     const h = this.layout?.house;
-    if (!h || z <= h[3] + 0.3) return 0;
-    return Math.max(GROUND_Y, ((z - h[3] - 0.3) / 0.6) * GROUND_Y);
+    const y = !h || z <= h[3] + 0.3 ? 0 : Math.max(GROUND_Y, ((z - h[3] - 0.3) / 0.6) * GROUND_Y);
+    for (const d of this.decks()) if (Math.abs(x - d.x) < d.w / 2 && Math.abs(z - d.z) < d.len / 2) return y + d.top;
+    return y;
+  }
+
+  decks() {
+    const props = this.world.props || [];
+    if (this.deckOf !== props.length) {
+      this.deckOf = props.length;
+      this.deckList = props.filter((q) => q.obj.userData.deck).map((q) => ({ x: q.x, z: q.z, ...q.obj.userData.deck }));
+    }
+    return this.deckList;
   }
 
   // ------------------------------------------------------------ 每帧
@@ -400,20 +433,31 @@ export class People {
     for (const p of this.list.values()) {
       p.t += dt;
       let walking = false;
+      p.waiting = false;
       if (p.path.length) {
         const next = p.path[0];
         const dx = next.x - p.pos.x, dz = next.z - p.pos.z;
         const dist = Math.hypot(dx, dz);
         const step = SPEED * dt * (this.replaying ? 2.5 : 1);
-        if (dist <= step) { p.pos.x = next.x; p.pos.z = next.z; p.path.shift(); }
-        else { p.pos.x += (dx / dist) * step; p.pos.z += (dz / dist) * step; }
-        if (dist > 0.001) p.yawTarget = Math.atan2(dx, dz);
-        walking = p.path.length > 0;
+        if (next.gate && p.gate !== next.gate && dist < GATE_WAIT && !this.replaying && !this.enterGate(p, next.gate, next.dir, now)) {
+          p.waiting = true;                                  // 门口有人反方向过来：在门外等一下
+          p.yawTarget = Math.atan2(dx, dz);
+        } else {
+          if (next !== p.stuckPt || dist < p.stuckD - 0.05) { p.stuckPt = next; p.stuckD = dist; p.stuckAt = now; }
+          else if (now - p.stuckAt > STUCK_MS) { p.ghostUntil = now + 2000; p.stuckAt = now; }   // 被人挡着绕了半天：先不让了，直接走过去
+          if (dist <= step || (p.path.length > 1 && dist < 0.2)) {
+            p.pos.x = next.x; p.pos.z = next.z; p.path.shift();
+            if (next.pass && next.pass === p.gate) this.leaveGate(p);
+          } else { p.pos.x += (dx / dist) * step; p.pos.z += (dz / dist) * step; }
+          if (dist > 0.001) p.yawTarget = Math.atan2(dx, dz);
+          walking = p.path.length > 0;
+        }
+        if (!p.path.length) this.leaveGate(p);
       }
-      const ride = !walking && p.rideId ? this.world.rides.get(p.rideId) : null;
+      const ride = !walking && !p.waiting && p.rideId ? this.world.rides.get(p.rideId) : null;
       if (walking) p.wasWalking = true;
       else if (p.wasWalking) { p.wasWalking = false; p.settleAt = now + 320; }     // 先转过身，再坐下
-      let pose = walking ? 'walk' : (p.settleAt > now && !p.rideId ? 'stand' : (p.data.pose || 'stand'));
+      let pose = walking ? 'walk' : (p.waiting || (p.settleAt > now && !p.rideId) ? 'stand' : (p.data.pose || 'stand'));
       if (ride) {
         ride.occ[p.seat] = true;
         ride.seats[p.seat]?.getWorldPosition(seatPos);
@@ -421,7 +465,7 @@ export class People {
         pose = ride.pose?.(p.seat) ?? pose;
         walking = pose === 'walk';
       } else {
-        p.pos.y = this.groundY(p.pos.x, p.pos.z);
+        p.pos.y = this.groundY(p.pos.x, p.pos.z) + (!walking && !p.waiting && !p.path.length && pose === p.data.pose ? p.seatY : 0);
       }
       if (!p.path.length) {
         p.yawTarget = ride?.yaw?.(p.seat) ?? (pose === 'lie' ? p.lieYaw : faceAngle(p.face));
@@ -449,20 +493,45 @@ export class People {
     this.separate(now, dt);
   }
 
+  // 门口一次只走一个方向：同方向的可以跟着过，反方向的在门外等；等太久就直接走，免得卡死
+  enterGate(p, id, dir, now) {
+    this.gates ||= new Map();
+    let g = this.gates.get(id);
+    if (g) for (const q of g.who) if (q.gate !== id || !q.path.length) g.who.delete(q);
+    if (!g || !g.who.size || g.dir === dir || now - (p.waitFrom || now) > GATE_GIVEUP) {
+      if (!g || !g.who.size) { g = { dir, who: new Set() }; this.gates.set(id, g); }
+      g.who.add(p); p.gate = id; p.waitFrom = 0;
+      return true;
+    }
+    p.waitFrom ||= now;
+    return false;
+  }
+
+  leaveGate(p) {
+    if (p.gate) this.gates?.get(p.gate)?.who.delete(p);
+    p.gate = null; p.waitFrom = 0;
+  }
+
   // 走路时别穿过别人，迎面碰上会打个招呼
   separate(now, dt) {
     if (this.replaying) return;
     const all = [...this.list.values()];
+    const moving = (q) => q.path.length && !q.waiting;
+    const arriving = (q) => q.path.length === 1 && Math.hypot(q.path[0].x - q.pos.x, q.path[0].z - q.pos.z) < 0.7;
+    const heading = (q) => { const n = q.path[0], x = n.x - q.pos.x, z = n.z - q.pos.z, l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
     for (const a of all) {
-      if (!a.path.length) continue;
+      if (!moving(a) || arriving(a) || now < (a.ghostUntil || 0)) continue;    // 快到座位了就别再被挤开
       for (const b of all) {
         if (a === b || b.rideId && !b.path.length) continue;
         const dx = a.pos.x - b.pos.x, dz = a.pos.z - b.pos.z, d = Math.hypot(dx, dz);
         if (d >= AVOID || d < 1e-4) continue;
-        const k = ((AVOID - d) * (b.path.length ? 0.5 : 1)) / d;
+        const both = moving(b);
+        const k = ((AVOID - d) * (both ? 0.5 : 1)) / d;
         a.pos.x += dx * k; a.pos.z += dz * k;
-        if (b.path.length) { a.pos.x += (-dz / d) * dt * 1.6; a.pos.z += (dx / d) * dt * 1.6; }       // 都在走就各往右让一点，不会顶住
-        if (b.path.length && now > (a.nodAt || 0) && now > (b.nodAt || 0) && Math.random() < 0.25) {
+        if (!both) continue;
+        const [ax, az] = heading(a), [bx, bz] = heading(b);
+        if (ax * bx + az * bz < -0.3) { a.pos.x += (-dz / d) * dt * 1.6; a.pos.z += (dx / d) * dt * 1.6; }   // 迎面碰上各往右让一点；同方向就跟在后面，不绕圈
+        if (now > (a.nodAt || 0) && now > (b.nodAt || 0) && Math.random() < 0.25) {
           a.nodAt = b.nodAt = now + 45000;
           this.pop(a, '👋');
         }
@@ -515,12 +584,29 @@ export class People {
     }
     const idle = Math.abs(p.gest.r[0]) + Math.abs(p.gest.r[1]) + Math.abs(p.gest.l[0]) + Math.abs(p.gest.l[1]) < 0.004;
     p.avatar.setGesture?.(idle ? null : p.gest);
+    if (p.kite) this.flyKite(p, now, p.hold.visible);
     if (p.hold.visible && p.hold.children.length) {                   // 东西跟着手走，但保持正着拿
       p.avatar.root.updateWorldMatrix(true, true);
       p.avatar.hand.getWorldQuaternion(handQ);
       p.avatar.root.getWorldQuaternion(bodyQ);
       p.hold.quaternion.copy(handQ.invert().multiply(bodyQ));
     }
+  }
+
+  // 风筝飘在面朝的方向，线从手里拉过去
+  flyKite(p, now, on) {
+    const { g, line } = p.kite;
+    g.visible = line.visible = on;
+    if (!on) return;
+    const t = now / 1000, f = [Math.sin(p.yaw), Math.cos(p.yaw)];
+    g.position.set(f[0] * 3.2 + Math.sin(t * 0.7) * 0.5 * f[1], 4.2 + Math.sin(t * 1.3) * 0.25, f[1] * 3.2 - Math.sin(t * 0.7) * 0.5 * f[0]);
+    g.rotation.set(0, p.yaw, Math.sin(t * 1.1) * 0.25);
+    p.hold.getWorldPosition(kiteHand);
+    p.root.worldToLocal(kiteHand);
+    const a = line.geometry.attributes.position;
+    a.setXYZ(0, kiteHand.x, kiteHand.y, kiteHand.z);
+    a.setXYZ(1, g.position.x, g.position.y - 0.4, g.position.z);
+    a.needsUpdate = true;
   }
 
   updateUses() {

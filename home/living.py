@@ -111,15 +111,19 @@ def new_goal(likes: dict[str, Any], usable: set[str], decor: list[str], last: st
 # ---------------------------------------------------------------- 集体活动
 GATHERINGS = [
     {"key": "movie", "label": "看电影", "tags": ["tv", "beanbag"], "emote": "🍿", "anim": "look", "prop": "cup",
-     "lines": ["这段别快进。", "谁把爆米花吃完了？"], "text": "凑在{room}看了一部电影"},
+     "lines": ["这段别快进。", "谁把爆米花吃完了？"], "text": "凑在{room}看了一部电影",
+     "things": ["一部讲深海的纪录片", "一部老港片", "一部动画电影", "一部悬疑片", "一部公路片"], "doing": "一起看{thing}", "detail": "，看的是{thing}"},
     {"key": "book", "label": "开读书会", "tags": ["reading"], "emote": "📖", "anim": "read", "prop": "book",
-     "lines": ["这一章你怎么看？", "我觉得结局早写好了。"], "text": "在{room}开了个读书会"},
+     "lines": ["这一章你怎么看？", "我觉得结局早写好了。"], "text": "在{room}开了个读书会",
+     "things": ["一本短篇小说集", "一本讲宇宙的科普书", "一本诗集", "一本游记"], "doing": "开读书会，读{thing}", "detail": "，读的是{thing}"},
     {"key": "dinner", "label": "一起吃饭", "tags": ["table", "stove", "fridge"], "emote": "🍲", "anim": "sip", "prop": "cup",
-     "lines": ["今天这个咸了一点。", "还有饭吗？"], "text": "聚在{room}一起吃了顿饭"},
+     "lines": ["今天这个咸了一点。", "还有饭吗？"], "text": "聚在{room}一起吃了顿饭", "doing": "一起吃{thing}", "detail": "，吃的是{thing}"},
     {"key": "concert", "label": "听小音乐会", "tags": ["piano", "sofa"], "emote": "♪", "anim": "nod", "prop": "",
-     "lines": ["再弹一首吧。", "这段是不是错了个音？"], "text": "在{room}听了场小音乐会"},
-    {"key": "picnic", "label": "在湖边野餐", "tags": ["lake_feed", "bench", "fish"], "emote": "🧺", "anim": "look", "prop": "cup",
-     "lines": ["鸭子过来了！", "别喂太多。"], "text": "去{room}野餐了", "outdoor": True},
+     "lines": ["再弹一首吧。", "这段是不是错了个音？"], "text": "在{room}听了场小音乐会",
+     "things": ["几首练习曲", "一首慢的小夜曲", "几首老歌", "一首自己编的曲子"], "doing": "听小音乐会，弹的是{thing}", "detail": "，弹的是{thing}"},
+    {"key": "picnic", "label": "野餐", "tags": ["lake_feed", "bench", "fish", "lawn_sit"], "emote": "🧺", "anim": "look", "prop": "cup",
+     "lines": ["这个三明治谁做的？", "别让鸭子抢了。"], "text": "去{room}野餐了", "outdoor": True,
+     "things": ["三明治和水果", "饭团和炸鸡", "西瓜和汽水", "蛋糕和热茶"], "doing": "野餐，带了{thing}", "detail": "，带了{thing}"},
 ]
 
 TOUCH: dict[str, dict[str, Any]] = {

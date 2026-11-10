@@ -95,7 +95,7 @@ function renderPeople() {
     <div class="pp" data-id="${esc(r.id)}" style="--c:${esc(r.color)}">
       <div class="av" style="${avatarStyle(r.id)}"></div>
       <div class="nm">${esc(r.name)}<small>${esc(r.model_label)}</small></div>
-      <div class="st"><span class="dot ${esc(r.status)}"></span>${esc(STATUS[r.status] || r.status)} · ${esc(r.status === 'offline' ? (r.note || r.ready_info) : (r.place ? r.place + ' · ' : '') + r.activity)}</div>
+      <div class="st"><span class="dot ${esc(r.status)}"></span>${esc(STATUS[r.status] || r.status)} · ${esc(r.status === 'offline' ? (r.note || r.ready_info) : (r.place ? r.place + ' · ' : '') + r.activity + (r.thing ? ' · ' + r.thing : ''))}</div>
       <div class="ac">${esc(r.access_label)} · 今日 ${r.calls_today}/${r.daily_calls} 次</div>
     </div>`).join('');
   $('people').querySelectorAll('.pp').forEach((el) => el.addEventListener('click', () => openCard(el.dataset.id)));
@@ -234,7 +234,7 @@ function cardStatus(r) {
         <h3>${esc(r.name)}</h3>
         <div class="sub">${esc(r.model_label)} · ${esc(r.access_label)}</div>
         <div class="line"><span class="dot ${esc(r.status)}"></span>${esc(STATUS[r.status] || r.status)}</div>
-        <div class="line">${esc(r.place || '')}${r.place ? ' · ' : ''}${esc(r.activity)}</div>
+        <div class="line">${esc(r.place || '')}${r.place ? ' · ' : ''}${esc(r.activity)}${r.thing ? ' · ' + esc(r.thing) : ''}</div>
         <div class="line" style="font-size:13px;color:var(--ink-2)">今天调用 ${r.calls_today} / ${r.daily_calls} 次${r.fails_today ? `，失败 ${r.fails_today}` : ''}</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
       </div>
