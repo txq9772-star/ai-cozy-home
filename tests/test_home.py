@@ -501,6 +501,43 @@ class LifeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.life.interact("ayu", "explode")
 
+    def test_go_request_finds_room_spot_or_activity(self):
+        self.outdoors()
+        self.assertEqual(self.life._go_request("@阿C 去厨房")["kind"], "room")
+        self.assertEqual(self.life._go_request("阿鱼去游乐场荡秋千")["kind"], "activity")
+        self.assertEqual(self.life._go_request("阿G过来沙发这边")["kind"], "spot")
+        self.assertEqual(self.life._go_request("都回房间吧")["kind"], "bedroom")
+        self.assertIsNone(self.life._go_request("厨房真乱"))
+        self.assertIsNone(self.life._go_request("@阿C 在吗"))
+
+    def test_calling_someone_over_counts_as_mention_without_at(self):
+        self.life.life["chat_reply_chance"] = 0.0
+        self.assertEqual(self.replies("阿C去厨房"), ["ac"])
+        self.assertEqual(set(self.replies("大家都去客厅")), {"ac", "ag", "ayu", "ak"})
+
+    def test_reply_to_a_call_actually_moves(self):
+        r = self.life.residents["ac"]
+        msg = self.store.add_chat("owner", "@阿C 去厨房")
+        with patch("home.drivers.Mock.generate", return_value=drivers.Gen(True, text="好，这就去")),                 patch("home.life.threading.Timer", ImmediateTimer):
+            self.life._reply(r, msg, True)
+        self.assertEqual(r.room, "kitchen")
+        self.assertEqual(self.store.list_chat(1)[0]["text"], "好，这就去")
+        msg = self.store.add_chat("owner", "@阿C 去书房")
+        with patch("home.drivers.Mock.generate", return_value=drivers.Gen(True, text="锅还在火上，等会儿 [不去]")),                 patch("home.life.threading.Timer", ImmediateTimer):
+            self.life._reply(r, msg, True)
+        self.assertEqual(r.room, "kitchen")
+        self.assertEqual(self.store.list_chat(1)[0]["text"], "锅还在火上，等会儿")
+
+    def test_go_to_room_without_activities_just_stands_there(self):
+        r = self.life.residents["ag"]
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            out = self.life.go_to(r, {"kind": "room", "room": "storage", "name": "储物间"})
+        self.assertEqual(r.room, "storage")
+        self.assertIn("储物间", out)
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            self.life.go_to(r, {"kind": "bedroom", "name": "自己房间"})
+        self.assertEqual(r.room, r.bedroom)
+
     def outdoors(self):
         layout = build_layout(CFG["residents"], ROOMS, TPL, [{"template": "playground"}])
         self.life.apply(CFG, layout, ACTS)

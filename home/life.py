@@ -28,6 +28,9 @@ from .store import Store
 log = logging.getLogger("home.life")
 Emit = Callable[[str, Any], None]
 MENTION_ALL = ("@所有人", "@全体成员", "@全体", "@all", "@大家")
+GO_WORDS = ("去", "来", "到", "过来", "过去", "回")        # 主人喊人去哪：句子里得有这类字才算
+GO_REFUSE = "[不去]"
+GO_SKIP_LABELS = ("门口",)                                 # 太泛的位置名不拿来认地方
 DAY_HOURS = (7, 19)
 REFLECT_MIN = 4               # 当天至少攒够这么多条零碎记忆，睡前才整理
 SMALL_TALK = [("今天吃什么？", "冰箱里好像还有点。"), ("你刚才在忙什么？", "没忙什么，瞎晃。"),
@@ -748,9 +751,14 @@ class Life:
         weights = [5 + self.store.relation_score(r.id, o.id) for o in partners]   # 更愿意叫上处得好的人
         return random.choices(partners, weights=weights)[0], a, b
 
-    def _choices(self, r: Resident, forced: str | set[str] | None = None) -> list[tuple[str, dict[str, Any], list[dict[str, Any]]]]:
+    def _choices(self, r: Resident, forced: str | set[str] | None = None,
+                 where: tuple[str, str | None] | None = None) -> list[tuple[str, dict[str, Any], list[dict[str, Any]]]]:
         out = []
         wanted = {forced} if isinstance(forced, str) else forced
+        def here(spots: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            if not where:
+                return spots
+            return [s for s in spots if s["room"] == where[0] and (where[1] is None or s["spot"] == where[1])]
         raining = self.weather() == "rain"
         outside = self._outdoor_activities() if raining else set()
         festival = self.festival()
@@ -765,12 +773,12 @@ class Life:
             if act.get("weather") and act["weather"] != self.weather():
                 continue
             if act.get("visit"):
-                hosts = [s for s in self.spots if "guest" in s["tags"] and s["owner"] and s["owner"] != r.id and self._at_home(s["owner"])]
+                hosts = here([s for s in self.spots if "guest" in s["tags"] and s["owner"] and s["owner"] != r.id and self._at_home(s["owner"])])
                 if hosts:
                     out.append((aid, act, hosts))
                 continue
             tags = set(act.get("spots") or [])
-            cands = [s for s in self.spots if tags & set(s["tags"]) and (not s["owner"] or s["owner"] == r.id)]
+            cands = here([s for s in self.spots if tags & set(s["tags"]) and (not s["owner"] or s["owner"] == r.id)])
             if cands and (not act.get("together") or self._pair(r, cands)):
                 out.append((aid, act, cands))
         return out
@@ -824,8 +832,9 @@ class Life:
     def _doing_text(act: dict[str, Any], thing: str) -> str:
         return str(act["doing"]).replace("{thing}", thing) if thing and act.get("doing") else ""
 
-    def start_activity(self, r: Resident, forced: str | set[str] | None = None) -> str:
-        choices = self._choices(r, forced)
+    def start_activity(self, r: Resident, forced: str | set[str] | None = None,
+                       where: tuple[str, str | None] | None = None) -> str:
+        choices = self._choices(r, forced, where)
         if not choices:
             r.next_at = time.time() + 5 * self.minute
             return "现在没什么可做的（没有合适的位置或内容）"
@@ -1308,10 +1317,57 @@ class Life:
         self.plan_replies(msg)
         return msg
 
-    def mentions(self, text: str) -> list[Resident]:
-        if any(m in text for m in MENTION_ALL):
+    def mentions(self, text: str, loose: bool = False) -> list[Resident]:
+        """@ 到谁。loose：喊人去哪的时候不带 @ 也算，「阿C去厨房」「大家去湖边」。"""
+        if any(m in text for m in MENTION_ALL) or (loose and any(w in text for w in ("大家", "所有人", "都"))):
             return list(self.residents.values())
-        return [r for r in self.residents.values() if f"@{r.name}" in text or f"@{r.id}" in text]
+        return [r for r in self.residents.values() if f"@{r.name}" in text or f"@{r.id}" in text or (loose and r.name in text)]
+
+    def _go_request(self, text: str) -> dict[str, Any] | None:
+        """主人在群里喊人去哪：认房间名、位置名、活动名，取说得最具体（最长）的那个。"""
+        if not any(w in text for w in GO_WORDS):
+            return None
+        found: list[tuple[int, dict[str, Any]]] = []
+        for room in self.layout["rooms"]:
+            if room["name"] and room["name"] in text:
+                found.append((len(room["name"]), {"kind": "room", "room": room["id"], "name": room["name"]}))
+        for s in self.spots:
+            label = str(s["label"])
+            if label in GO_SKIP_LABELS or len(label) < 2 or label not in text or s["owner"]:
+                continue
+            found.append((len(label) + 1, {"kind": "spot", "room": s["room"], "spot": s["spot"], "name": self.place_name(s["room"], s["spot"])}))
+        for aid, act in self.activities.items():
+            label = str(act.get("label") or "")
+            if label and label in text and not act.get("together") and not act.get("visit"):
+                found.append((len(label) + 2, {"kind": "activity", "aid": aid, "name": label}))
+        if any(w in text for w in ("卧室", "房间", "回家", "回屋")):
+            found.append((1, {"kind": "bedroom", "name": "自己房间"}))      # 「回房间」：各回各的，去哪一间要等知道是谁
+        if not found:
+            return None
+        found.sort(key=lambda x: -x[0])
+        return found[0][1]
+
+    def go_to(self, r: Resident, go: dict[str, Any]) -> str:
+        """真的走过去：能在那儿做的事就挑一件做，没有就站着。"""
+        if go["kind"] == "activity":
+            return self.start_activity(r, go["aid"])
+        where = (r.bedroom, None) if go["kind"] == "bedroom" else (go["room"], go.get("spot"))
+        if self._choices(r, None, where):
+            return self.start_activity(r, None, where)
+        with self.lock:
+            taken = {(o.room, o.spot) for o in self.residents.values() if o is not r}
+        cands = [s for s in self.spots if s["room"] == where[0] and (where[1] is None or s["spot"] == where[1])
+                 and (not s["owner"] or s["owner"] == r.id)]
+        free = [s for s in cands if (s["room"], s["spot"]) not in taken] or cands
+        if not free:
+            return f"{go['name']}没有能待的位置"
+        spot = random.choice(free)
+        r.room, r.spot, r.since = spot["room"], spot["spot"], time.time()
+        r.activity, r.status = f"在{go['name']}待着", "idle"
+        r.next_at = time.time() + self._activity_gap()
+        self._clear_act(r)
+        self.changed(r)
+        return f"{r.name} 去{go['name']}了"
 
     def _chat_crowded(self) -> bool:
         """住户之间最近一分钟说得太多，就先不主动接话。@ 到的人和回主人的话不受影响。"""
@@ -1353,7 +1409,8 @@ class Life:
         chance = float(self.life.get("chat_reply_chance", 0.5))
         wake = bool(self.life.get("wake_on_mention", True))
         sender = msg["sender"]
-        mentioned = [r for r in self.mentions(msg["text"]) if r.id != sender]
+        go = self._go_request(msg["text"]) if sender == "owner" else None
+        mentioned = [r for r in self.mentions(msg["text"], loose=bool(go)) if r.id != sender]
         awake = [r for r in self.residents.values() if r.id != sender and r.ready and r.status in ("idle", "busy")]
         chosen: list[tuple[Resident, bool]] = []
         if sender == "owner":
@@ -1386,13 +1443,15 @@ class Life:
             return
         try:
             asleep = r.status == "asleep"
+            go = self._go_request(str(trigger["text"])) if trigger.get("sender") == "owner" and mentioned and not asleep else None
             r.typing = True
             self.emit("resident", self.public(r))
             system = self._system(r)
             chat = self.store.list_chat(15)
             memories = self.store.recall_memory(r.id, " ".join(c["text"] for c in chat[-3:]), 4)
             prompt = prompts.chat_prompt(self.clock(), self.place_name(r.room, r.spot), self._doing(r), chat,
-                                         self.names(), self.home_info()["owner"], self.clock, asleep, mentioned, memories)
+                                         self.names(), self.home_info()["owner"], self.clock, asleep, mentioned, memories,
+                                         go=go["name"] if go else "")
             gen = self._call(r, system, prompt, "line")
         finally:
             r.typing = False
@@ -1401,10 +1460,17 @@ class Life:
         if not gen.ok:
             return
         text = prompts.tidy(gen.text, 160, r.name)
+        refused = GO_REFUSE in text
+        text = " ".join(text.replace(GO_REFUSE, " ").split())
         if not text or prompts.SILENT in text or re.fullmatch(r"[\[\]（）()不说话\s。.]*", text):
             return
         msg = self.store.add_chat(r.id, text, depth=int(trigger.get("depth") or 0) + 1, reply_to=trigger.get("id"))
         self.emit("chat", msg)
+        if go and not refused and not self.paused:
+            try:
+                log.info("%s 应主人的话去%s：%s", r.name, go["name"], self.go_to(r, go))
+            except Exception:
+                log.exception("%s 去%s出错", r.name, go["name"])
         self._note_chat(r, trigger, text)
         self.plan_replies(msg)
 
