@@ -33,9 +33,10 @@ life:
 
 bedrooms: 8   # 卧室总数，住户没住满的是空房。住户超过这个数时卧室自动加，写 0 就不留空房
 
-outdoors:     # 大门外的场地，模板在 rooms/。不写默认有游乐场，写 outdoors: [] 就没有
+outdoors:     # 大门外的场地，模板在 rooms/。不写默认有游乐场、湖和农场，写 outdoors: [] 就没有
   - {template: playground}
   - {template: lake}
+  - {template: farm}  # 农场：种地、养牲口、开农机。这里不写也会自动接在最后，不要就在顶层写 farm: false
 
 sources:    # 住户刷到的内容。只取标题和一小段简介当作资料交给模型，模型不能执行任何东西
   bilibili:

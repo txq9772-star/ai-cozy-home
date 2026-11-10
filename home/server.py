@@ -42,7 +42,7 @@ log = logging.getLogger("home")
 VERSION = "0.1.0"
 DEFAULT_ROOMS = [{"template": t} for t in ("living", "study", "play", "kitchen", "storage", "lounge", "library")]
 DEFAULT_BEDROOMS = 8
-DEFAULT_OUTDOORS = [{"template": "playground"}, {"template": "lake"}]
+DEFAULT_OUTDOORS = [{"template": "playground"}, {"template": "lake"}, {"template": "farm"}]
 MOVE_IN_KEY = "__movein__"
 MOVE_IN_DRIVERS = ("openai_api", "mock")
 WEB = ROOT / "web"
@@ -105,7 +105,11 @@ def load_activities() -> dict[str, dict[str, Any]]:
 
 def make_layout(cfg: dict[str, Any]) -> dict[str, Any]:
     templates = load_templates(ROOT / "rooms")
-    return build_layout(cfg["residents"], cfg.get("rooms") or DEFAULT_ROOMS, templates, cfg.get("outdoors", DEFAULT_OUTDOORS),
+    outdoors = list(cfg.get("outdoors", DEFAULT_OUTDOORS) or [])
+    # 农场默认接在最后一块场地南边；配置里写了 outdoors 但没写 farm 也会加上，不要就写 farm: false
+    if outdoors and cfg.get("farm", True) and not any(o.get("template") == "farm" for o in outdoors):
+        outdoors.append({"template": "farm"})
+    return build_layout(cfg["residents"], cfg.get("rooms") or DEFAULT_ROOMS, templates, outdoors,
                         cfg.get("bedrooms", DEFAULT_BEDROOMS))
 
 
