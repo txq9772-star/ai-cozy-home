@@ -29,6 +29,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pill.brand { font-weight: 600; }
 .pill.brand::before { content: "⌂ "; color: var(--accent); }
 .pill.round { width: 34px; height: 34px; padding: 0; display: inline-grid; place-items: center; font-size: calc(16px * var(--fs-ui, 1)); }
+#view-help { color: var(--ink-2); cursor: help; }
 .pill.warn { background: #fff3dc; border-color: #f0cf8e; color: #8a5a00; }
 button.pill:hover { background: #fff; }
 

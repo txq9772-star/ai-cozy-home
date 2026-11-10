@@ -45,7 +45,13 @@ export class World {
     this.camera = new THREE.PerspectiveCamera(30, 1, 2, 700);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, minPolarAngle: 0.3, maxPolarAngle: 1.22,
-      minDistance: 8, maxDistance: 280, screenSpacePanning: false, zoomToCursor: true });
+      minDistance: 8, maxDistance: 280, screenSpacePanning: false, zoomToCursor: true, keyPanSpeed: 18 });
+    // 左键拖是挪地图，右键拖才转视角（转也有工具栏的两个按钮）；手机上一指挪、两指缩放和转
+    this.controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+    this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+    this.renderer.domElement.tabIndex = 0;             // 点过画面之后方向键才挪地图，打字框里按方向键不受影响
+    this.renderer.domElement.style.outline = 'none';
+    this.controls.listenToKeyEvents(this.renderer.domElement);
     this.controls.addEventListener('change', () => this.updateCutaway());
 
     this.hemi = new THREE.HemisphereLight('#dbe8ff', '#5d6b4a', 1.2);

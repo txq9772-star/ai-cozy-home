@@ -28,6 +28,7 @@ from home.life import Life  # noqa: E402
 from home.store import Store  # noqa: E402
 
 CFG = yaml.safe_load((ROOT / "home.example.yaml").read_text(encoding="utf-8"))
+CFG["residents"] = CFG["residents"][:4]        # 测试按最早的四个人（ac ag ayu ak）写，示例配置后来加的人不算
 ACTS = yaml.safe_load((ROOT / "activities.yaml").read_text(encoding="utf-8"))
 TPL = load_templates(ROOT / "rooms")
 ROOMS = [{"template": t} for t in ("living", "study", "play", "kitchen", "storage")]
@@ -513,7 +514,7 @@ class LifeTests(unittest.TestCase):
     def test_calling_someone_over_counts_as_mention_without_at(self):
         self.life.life["chat_reply_chance"] = 0.0
         self.assertEqual(self.replies("阿C去厨房"), ["ac"])
-        self.assertEqual(set(self.replies("大家都去客厅")), {"ac", "ag", "ayu", "ak"})
+        self.assertEqual(set(self.replies("大家都去客厅")), set(self.life.residents))
 
     def test_reply_to_a_call_actually_moves(self):
         r = self.life.residents["ac"]

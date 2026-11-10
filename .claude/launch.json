@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "xiaowo-mock",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["home/server.py", "--mock", "--fast", "--no-hub", "--config", "home.example.yaml", "--data", "data-mock"],
+      "port": 8760
+    }
+  ]
+}
