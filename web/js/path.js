@@ -27,13 +27,36 @@ function footprint(f) {
     case 'beanbag': return [0.55, -0.55, 0.55];
     case 'chair': return [0.24, -0.24, 0.24];
     case 'boxes': return [0.9, -0.8, 0.9];
+    case 'field': return [(f.w || 12) / 2, -(f.d || 10) / 2, (f.d || 10) / 2];
+    case 'barn': return [(f.w || 10) / 2, -(f.d || 8) / 2, (f.d || 8) / 2];
+    case 'silo': return [(f.r || 2), -(f.r || 2), (f.r || 2)];
+    case 'windmill': return [1.2, -1.2, 1.2];
+    case 'hay': return [0.65, -0.65, 0.65];
+    case 'scarecrow': return [0.2, -0.2, 0.2];
     default: return null;
   }
+}
+
+// 牲口圈：四面栅栏各算一条，门那面留口子，人从门进去
+function penWalls(f) {
+  const w = f.w || 10, d = f.d || 8, gate = f.gate || 'n', at = f.gate_at || 0, GAP = 2.4, T = 0.12;
+  const out = [];
+  for (const wall of ['n', 's', 'e', 'w']) {
+    const along = wall === 'n' || wall === 's', len = along ? w : d;
+    const segs = wall === gate ? [[-len / 2, at - GAP / 2], [at + GAP / 2, len / 2]] : [[-len / 2, len / 2]];
+    for (const [a, b] of segs) {
+      if (b - a < 0.1) continue;
+      if (along) { const z = f.z + (wall === 'n' ? -d / 2 : d / 2); out.push([f.x + a, z - T, f.x + b, z + T]); }
+      else { const x = f.x + (wall === 'w' ? -w / 2 : w / 2); out.push([x - T, f.z + a, x + T, f.z + b]); }
+    }
+  }
+  return out;
 }
 
 export function obstacles(room) {
   const out = [];
   for (const f of room.furniture || []) {
+    if (f.type === 'pen') { out.push(...penWalls(f)); continue; }
     const b = footprint(f);
     if (!b) continue;
     const [hx, z0, z1] = b;
@@ -41,6 +64,34 @@ export function obstacles(room) {
     out.push(turned ? [f.x + z0, f.z - hx, f.x + z1, f.z + hx] : [f.x - hx, f.z + z0, f.x + hx, f.z + z1]);
   }
   return out;
+}
+
+// 小根堆：农场那么大的场地，线性找最小值太慢
+class Heap {
+  constructor() { this.k = []; this.v = []; }
+  get size() { return this.k.length; }
+  push(key, val) {
+    const k = this.k, v = this.v;
+    let i = k.length; k.push(key); v.push(val);
+    while (i > 0) { const p = (i - 1) >> 1; if (k[p] <= key) break; k[i] = k[p]; v[i] = v[p]; i = p; }
+    k[i] = key; v[i] = val;
+  }
+  pop() {
+    const k = this.k, v = this.v, top = v[0], lk = k.pop(), lv = v.pop();
+    if (k.length) {
+      let i = 0;
+      for (;;) {
+        const a = 2 * i + 1, b = a + 1;
+        let m = i, mk = lk;
+        if (a < k.length && k[a] < mk) { m = a; mk = k[a]; }
+        if (b < k.length && k[b] < mk) { m = b; mk = k[b]; }
+        if (m === i) break;
+        k[i] = k[m]; v[i] = v[m]; i = m;
+      }
+      k[i] = lk; v[i] = lv;
+    }
+    return top;
+  }
 }
 
 export class Grid {
@@ -121,12 +172,11 @@ export class Grid {
     const prev = new Int32Array(this.w * this.h).fill(-1);
     const shut = new Uint8Array(this.w * this.h);
     const heur = (i, j) => Math.hypot(i - g[0], j - g[1]);
-    const open = [[heur(s[0], s[1]), start]];
+    const open = new Heap();
+    open.push(heur(s[0], s[1]), start);
     gs[start] = 0;
-    while (open.length) {
-      let m = 0;
-      for (let k = 1; k < open.length; k++) if (open[k][0] < open[m][0]) m = k;
-      const [, cur] = open.splice(m, 1)[0];
+    while (open.size) {
+      const cur = open.pop();
       if (cur === goal) break;
       if (shut[cur]) continue;
       shut[cur] = 1;
@@ -135,7 +185,7 @@ export class Grid {
         const ni = ci + di, nj = cj + dj;
         if (!this.free(ni, nj) || (di && dj && (!this.free(ci + di, cj) || !this.free(ci, cj + dj)))) continue;
         const nk = key(ni, nj), d = gs[cur] + Math.hypot(di, dj);
-        if (d < gs[nk]) { gs[nk] = d; prev[nk] = cur; open.push([d + heur(ni, nj), nk]); }
+        if (d < gs[nk]) { gs[nk] = d; prev[nk] = cur; open.push(d + heur(ni, nj), nk); }
       }
     }
     if (goal !== start && prev[goal] < 0) return [to];

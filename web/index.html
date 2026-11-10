@@ -33,6 +33,8 @@
     <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.4 3-5 5.5-5s4.9 1.6 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2c2.3 0 4.3 1.3 4.9 4.6"/></svg></button>
   <button data-panel="notes" title="留言">
     <svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12.5" rx="2"/><path d="m4 7.5 8 6 8-6"/></svg><i class="badge hidden" id="notes-badge"></i></button>
+  <button data-panel="farm" title="农场">
+    <svg viewBox="0 0 24 24"><path d="M4 20V10l8-5.5 8 5.5v10z"/><path d="M9.5 20v-5h5v5"/><path d="M4 10h16"/></svg></button>
   <button data-panel="daily" title="日报">
     <svg viewBox="0 0 24 24"><path d="M6 3.5h12v17H6z"/><path d="M9 8h6M9 12h6M9 16h3.5"/></svg></button>
   <button id="open-replay" title="回放">
@@ -64,6 +66,12 @@
     <input id="note-text" maxlength="300" autocomplete="off" placeholder="留句话，醒着的时候会看到">
     <button class="btn primary">留言</button>
   </form>
+</section>
+
+<section class="panel side hidden" id="panel-farm">
+  <div class="panel-head"><b>农场</b><span class="hint" title="地里种的、圈里养的、粮仓里存的。住户自己安排农活，地干了要浇水，熟了要收">ⓘ</span>
+    <button class="x" id="farm-go" title="镜头移到农场">⌖</button><button class="x" data-close>×</button></div>
+  <div class="farm" id="farm"></div>
 </section>
 
 <section class="panel side hidden" id="panel-daily">

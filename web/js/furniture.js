@@ -792,9 +792,12 @@ export const FURNITURE = {
   wall_art, fishbowl, globe, tall_plant, speaker, shoe_rack, pot_rack, tree_big, flowerbed, flowers, pad, hedge, path_stones, gazebo, piano, easel, chess, cat, lake, dock, basket, book_pile, recipe, flower, painting, sheet, plush_duck, fish_trophy, dumbbell, poster, photo, cat_toy,
 };
 
+export { bar, makeRide, anchor, SEAT_DROP, tree_big };
+
 export function buildFurniture(spec) {
   const fn = FURNITURE[spec.type] || unknown;
   const g = fn(spec);
+  g.userData.spec = spec;
   g.position.x = spec.x; g.position.z = spec.z;
   g.rotation.y = spec.rot != null ? (spec.rot * Math.PI) / 180 : faceAngle(spec.face);
   g.userData.type = spec.type;

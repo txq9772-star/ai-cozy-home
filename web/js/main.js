@@ -21,6 +21,7 @@ async function boot() {
   world.setLayout(layout);
   people.setLayout(layout);
   state.residents.forEach((r) => people.update(r));
+  world.setFarm(state.farm);
   ui.init({ world, people, state });
   ui.tickClock();
   window.__home.replay = ui.replay();
@@ -38,6 +39,7 @@ function connect() {
       const state = await api('/api/state');
       syncClock(state.home);
       state.residents.forEach((r) => people.update(r));
+      world.setFarm(state.farm);
       ui.resync(state);
     }
     retry = 0;
@@ -55,6 +57,7 @@ function connect() {
       case 'pending': ui.setPending(data); break;
       case 'notes': ui.notesChanged(); break;
       case 'home': syncClock(data); ui.setHome(data); break;
+      case 'farm': world.setFarm(data); ui.setFarm(data); break;
       case 'layout':
         world.setLayout(data); people.setLayout(data);
         api('/api/state').then((st) => { people.prune(new Set(st.residents.map((r) => r.id))); ui.resync(st); });

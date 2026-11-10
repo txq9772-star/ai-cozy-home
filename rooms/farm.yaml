@@ -1,0 +1,103 @@
+# 户外模板：农场。接在湖边南边（湖的 exit_at 让门开在东岸），默认就有，home.yaml 写 farm: false 就不要。
+# 坐标相对场地中心，x 向东、z 向南。西边三分之二是田，东边是粮仓、农机棚和牲口圈。
+# field：一块地。plot 是地块编号（别重复），crop 是种什么（rice 稻 / wheat 麦 / corn 玉米 / potato 土豆），name 写进动态。
+# pen：一个圈。pen 是编号，kind 是 cow / sheep / chicken，gate 是门开在哪面墙、gate_at 是门在那面墙上的位置。
+# machine：一台农机。ride 和 spot 的 ride 对上，人坐上去它才开。road_z 是主路，gaps 是田之间能开车的缝，gate 是拉粮出门的地方。
+# spot 的 target：农机写能收的作物（逗号隔开），圈旁边写圈的编号，田边写地块编号。
+name: 农场
+icon: farm
+kind: outdoor
+size: [96, 60]
+label: [27, -28.2]
+furniture:
+  # ---------- 路
+  - {type: road, x: 0, z: 0, w: 3.4, pts: [[-47, 0], [47, 0]]}
+  - {type: road, x: 0, z: 0, w: 3.0, pts: [[19.8, -30], [19.8, 0]]}
+  - {type: road, x: 0, z: 0, w: 2.0, pts: [[-46, -15], [15.5, -15]]}
+  - {type: road, x: 0, z: 0, w: 2.0, pts: [[-46, 15], [15.5, 15]]}
+  - {type: road, x: 0, z: 0, w: 1.8, pts: [[-31.5, -27.5], [-31.5, 27.5]]}
+  - {type: road, x: 0, z: 0, w: 1.8, pts: [[-16, -27.5], [-16, 27.5]]}
+  - {type: road, x: 0, z: 0, w: 1.8, pts: [[-0.5, -27.5], [-0.5, 27.5]]}
+  - {type: road, x: 0, z: 0, w: 1.8, pts: [[15.5, -27.5], [15.5, 27.5]]}
+  - {type: road, x: 0, z: 0, w: 2.0, pts: [[34, 0], [34, 27]]}
+  - {type: road, x: 0, z: 0, w: 2.0, pts: [[19.8, -17.4], [31, -17.4]]}
+  # ---------- 田：北边一排稻田，往南依次麦田、玉米地、土豆地
+  - {type: field, plot: rice_1,   crop: rice,   name: 西头那块稻田,     x: -39.25, z: -21.5, w: 13.5, d: 11}
+  - {type: field, plot: rice_2,   crop: rice,   name: 西边第二块稻田,   x: -23.75, z: -21.5, w: 13.5, d: 11}
+  - {type: field, plot: rice_3,   crop: rice,   name: 中间那块稻田,     x: -8.25,  z: -21.5, w: 13.5, d: 11}
+  - {type: field, plot: rice_4,   crop: rice,   name: 东头那块稻田,     x: 7.25,   z: -21.5, w: 13.5, d: 11}
+  - {type: field, plot: wheat_1,  crop: wheat,  name: 西头那块麦田,     x: -39.25, z: -8.5,  w: 13.5, d: 11}
+  - {type: field, plot: wheat_2,  crop: wheat,  name: 西边第二块麦田,   x: -23.75, z: -8.5,  w: 13.5, d: 11}
+  - {type: field, plot: wheat_3,  crop: wheat,  name: 中间那块麦田,     x: -8.25,  z: -8.5,  w: 13.5, d: 11}
+  - {type: field, plot: wheat_4,  crop: wheat,  name: 东头那块麦田,     x: 7.25,   z: -8.5,  w: 13.5, d: 11}
+  - {type: field, plot: corn_1,   crop: corn,   name: 西头那块玉米地,   x: -39.25, z: 8.5,   w: 13.5, d: 11}
+  - {type: field, plot: corn_2,   crop: corn,   name: 西边第二块玉米地, x: -23.75, z: 8.5,   w: 13.5, d: 11}
+  - {type: field, plot: corn_3,   crop: corn,   name: 中间那块玉米地,   x: -8.25,  z: 8.5,   w: 13.5, d: 11}
+  - {type: field, plot: corn_4,   crop: corn,   name: 东头那块玉米地,   x: 7.25,   z: 8.5,   w: 13.5, d: 11}
+  - {type: field, plot: potato_1, crop: potato, name: 西头那块土豆地,   x: -39.25, z: 21.5,  w: 13.5, d: 11}
+  - {type: field, plot: potato_2, crop: potato, name: 西边第二块土豆地, x: -23.75, z: 21.5,  w: 13.5, d: 11}
+  - {type: field, plot: potato_3, crop: potato, name: 中间那块土豆地,   x: -8.25,  z: 21.5,  w: 13.5, d: 11}
+  - {type: field, plot: potato_4, crop: potato, name: 东头那块土豆地,   x: 7.25,   z: 21.5,  w: 13.5, d: 11}
+  - {type: scarecrow, x: -23.75, z: -14.6}
+  - {type: scarecrow, x: 7.25, z: 14.4, face: n}
+  # ---------- 东北：粮仓、筒仓、风车
+  - {type: barn, x: 27, z: -22.5, w: 10, d: 8}
+  - {type: silo, x: 35.5, z: -24, r: 2.1, h: 9}
+  - {type: silo, x: 40.5, z: -24, r: 2.1, h: 8}
+  - {type: windmill, x: 45, z: -21}
+  - {type: hay, x: 34, z: -17.6}
+  - {type: hay, x: 35.6, z: -17.2, rot: 30}
+  - {type: hay, x: 31.5, z: -28.2, rot: 70}
+  # ---------- 农机棚：门朝南对着主路，六台农机停成一排
+  - {type: shed, x: 34.5, z: -9.4, w: 25, d: 7}
+  - {type: machine, kind: tractor, ride: tractor1, x: 24.2, z: -9.4, face: s, road_z: 0, gaps: [-31.5, -16, -0.5, 15.5], gate: [19.8, -27.5]}
+  - {type: machine, kind: seeder,  ride: seeder1,  x: 28.3, z: -9.4, face: s, road_z: 0, gaps: [-31.5, -16, -0.5, 15.5], gate: [19.8, -27.5]}
+  - {type: machine, kind: sprayer, ride: sprayer1, x: 32.4, z: -9.4, face: s, road_z: 0, gaps: [-31.5, -16, -0.5, 15.5], gate: [19.8, -27.5]}
+  - {type: machine, kind: combine, ride: combine1, x: 36.5, z: -9.4, face: s, road_z: 0, gaps: [-31.5, -16, -0.5, 15.5], gate: [19.8, -27.5]}
+  - {type: machine, kind: digger,  ride: digger1,  x: 40.6, z: -9.4, face: s, road_z: 0, gaps: [-31.5, -16, -0.5, 15.5], gate: [19.8, -27.5]}
+  - {type: machine, kind: truck,   ride: truck1,   x: 44.7, z: -9.4, face: s, road_z: 0, gaps: [-31.5, -16, -0.5, 15.5], gate: [19.8, -27.5]}
+  # ---------- 东南：牛、羊、鸡
+  - {type: pen, pen: cows,     kind: cow,     count: 9,  name: 牛圈, x: 24.5, z: 15.5, w: 15, d: 23, gate: n, gate_at: -3.5}
+  - {type: pen, pen: sheep,    kind: sheep,   count: 14, name: 羊圈, x: 41,   z: 9,    w: 12, d: 10, gate: w, gate_at: -1}
+  - {type: pen, pen: chickens, kind: chicken, count: 24, name: 鸡舍, x: 41,   z: 21.5, w: 12, d: 10, gate: w, gate_at: 0}
+  # ---------- 四周
+  - {type: hedge, x: 0, z: "n+0.3", len: 96, gap_at: 19.8, gap: 3.6}
+  - {type: hedge, x: "w+0.3", z: 0, len: 59.4, rot: 90}
+  - {type: hedge, x: "e-0.3", z: 0, len: 59.4, rot: 90}
+  - {type: hedge, x: 0, z: "s-0.3", len: 96}
+  - {type: tree_big, x: 46, z: 1.8, s: 0.9}
+  - {type: tree_big, x: -46.4, z: 1.9, s: 0.8}
+  - {type: tree_big, x: 17.6, z: -27.6, s: 1.1}
+  - {type: tree_big, x: 31.5, z: 27.6, s: 0.85}
+  - {type: bench, x: 28.5, z: 2.6, face: n}
+  - {type: lamp_post, x: 21.8, z: -1.9}
+  - {type: lamp_post, x: -16, z: -1.9}
+  - {type: lamp_post, x: 36, z: 2.2}
+spots:
+  # 开农机：人走到车边坐上去，车开到要干活的地里
+  tractor:  {x: 24.2, z: -9.4, label: 拖拉机,     face: s, pose: sit, tags: [plow],        ride: tractor1, seat: 0}
+  seeder:   {x: 28.3, z: -9.4, label: 播种机,     face: s, pose: sit, tags: [sow],         ride: seeder1,  seat: 0}
+  sprayer:  {x: 32.4, z: -9.4, label: 洒水车,     face: s, pose: sit, tags: [water_field], ride: sprayer1, seat: 0}
+  combine:  {x: 36.5, z: -9.4, label: 收割机,     face: s, pose: sit, tags: [harvest],     ride: combine1, seat: 0, target: "rice,wheat,corn"}
+  digger:   {x: 40.6, z: -9.4, label: 土豆收获机, face: s, pose: sit, tags: [harvest],     ride: digger1,  seat: 0, target: potato}
+  truck:    {x: 44.7, z: -9.4, label: 货车,       face: s, pose: sit, tags: [sell],        ride: truck1,   seat: 0}
+  # 牲口
+  cow_feed:   {x: 21,   z: 5.2,  label: 牛圈的食槽, face: s, pose: stand, tags: [feed],  target: cows}
+  cow_milk:   {x: 28.6, z: 7.6,  label: 牛棚,       face: e, pose: sit,   tags: [milk],  target: cows}
+  sheep_feed: {x: 36.6, z: 8,    label: 羊圈的食槽, face: e, pose: stand, tags: [feed],  target: sheep}
+  sheep_cut:  {x: 39.5, z: 10.5, label: 羊圈,       face: e, pose: stand, tags: [shear], target: sheep}
+  hen_feed:   {x: 36.4, z: 21.5, label: 鸡舍门口,   face: e, pose: stand, tags: [feed],  target: chickens}
+  hen_eggs:   {x: 44,   z: 21.3, label: 鸡舍,       face: n, pose: stand, tags: [eggs],  target: chickens}
+  # 粮仓
+  barn:     {x: 27, z: -17.6, label: 粮仓门口, face: n, pose: stand, tags: [barn]}
+  bench_a:  {x: 27.9, z: 2.5, label: 农场路边的长椅, face: n, pose: sit, tags: [bench]}
+  bench_b:  {x: 29.1, z: 2.5, label: 农场路边的长椅, face: n, pose: sit, tags: [bench]}
+  # 田边：下地看看
+  look_rice_1:   {x: -39.25, z: -15.2, label: 稻田边,   face: n, pose: stand, tags: [field_look], target: rice_1}
+  look_rice_3:   {x: -8.25,  z: -15.2, label: 稻田边,   face: n, pose: stand, tags: [field_look], target: rice_3}
+  look_wheat_2:  {x: -23.75, z: -2.3,  label: 麦田边,   face: n, pose: stand, tags: [field_look], target: wheat_2}
+  look_wheat_4:  {x: 7.25,   z: -2.3,  label: 麦田边,   face: n, pose: stand, tags: [field_look], target: wheat_4}
+  look_corn_1:   {x: -39.25, z: 2.3,   label: 玉米地边, face: s, pose: stand, tags: [field_look], target: corn_1}
+  look_corn_3:   {x: -8.25,  z: 2.3,   label: 玉米地边, face: s, pose: stand, tags: [field_look], target: corn_3}
+  look_potato_2: {x: -23.75, z: 15.2,  label: 土豆地边, face: s, pose: stand, tags: [field_look], target: potato_2}
+  look_potato_4: {x: 7.25,   z: 15.2,  label: 土豆地边, face: s, pose: stand, tags: [field_look], target: potato_4}

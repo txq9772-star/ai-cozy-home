@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from home import days, drivers, living, prompts  # noqa: E402
+from home import farm as farm_mod  # noqa: E402
 from home import life as life_mod  # noqa: E402
 from home.layout import LayoutError, bedroom_style, build_layout, load_templates, spots_index  # noqa: E402
 from home.life import Life  # noqa: E402
@@ -686,7 +687,7 @@ class LivingTests(unittest.TestCase):
         self.store = Store(Path(self.tmp.name) / "home.db")
         self.addCleanup(self.store.db.close)
         rooms = ROOMS + [{"template": "lounge"}, {"template": "library"}]
-        self.layout = build_layout(CFG["residents"], rooms, TPL, [{"template": "playground"}, {"template": "lake"}], 8)
+        self.layout = build_layout(CFG["residents"], rooms, TPL, [{"template": "playground"}, {"template": "lake"}, {"template": "farm"}], 8)
         cfg = {**CFG, "life": dict(CFG["life"])}
         self.life = Life(cfg, self.layout, ACTS, self.store, Path(self.tmp.name), mock=True)
         self.events = []
@@ -778,8 +779,83 @@ class LivingTests(unittest.TestCase):
         self.assertEqual(len(rooms), 1)
         self.assertEqual(self.store.list_feed(1)[0]["kind"], "party")
 
+    def farm_day(self):
+        with patch.object(self.life, "is_day", return_value=True):
+            return {aid for aid, _, _ in self.life._choices(self.ac)}
+
+    def test_farm_plot_goes_round(self):
+        self.enterContext(patch.object(self.life, "is_day", return_value=True))
+        farm, now = self.life.farm, time.time()
+        for p in farm.plots.values():
+            p.update(stage="growing", grown=1.0, watered_at=now)
+        plot = farm.plots["wheat_1"]
+        plot.update(stage="stubble", grown=0.0)
+        self.assertIn("plow", self.farm_day())
+        self.assertNotIn("sow", self.farm_day())
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            self.life.start_activity(self.ac, "plow")
+        self.assertIn("西头那块麦田", self.ac.thing)
+        self.assertEqual(farm.work[0]["ride"], "tractor1")
+        self.assertEqual(plot["stage"], "stubble")            # 拖拉机还在开，地没变
+        self.life._clear_act(self.ac)                           # 人下车了，活算干完
+        self.assertEqual(plot["stage"], "plowed")
+        self.assertNotIn("plow", self.farm_day())
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            self.life.start_activity(self.ac, "sow")
+        farm.tick(time.time() + farm_mod.MACHINE_SECONDS + 1, False)
+        self.assertEqual(plot["stage"], "sown")
+        farm.checked = time.time()
+        farm.tick(time.time() + 49 * farm.hour, True)           # 下着雨长了两天
+        self.assertEqual(plot["stage"], "ripe")
+        for k, p in farm.plots.items():
+            if k != "wheat_1":
+                p.update(stage="plowed", grown=0.0)
+        before = farm.store.get("麦子", 0)
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            self.life.start_activity(self.ac, "harvest")
+        self.assertIn("麦子", self.ac.thing)
+        self.life._clear_act(self.ac)
+        self.assertEqual(plot["stage"], "stubble")
+        self.assertGreater(farm.store["麦子"], before)
+        self.assertEqual(self.life.store.load_state("__farm__")["plots"]["wheat_1"]["stage"], "stubble")
+
+    def test_farm_dry_plot_stops_growing(self):
+        farm, now = self.life.farm, time.time()
+        p = farm.plots["corn_1"]
+        p.update(stage="growing", grown=30.0, watered_at=now - 30 * farm.hour)
+        farm.checked = now
+        farm.tick(now + 5 * farm.hour, False)
+        self.assertEqual(p["grown"], 30.0)
+        self.assertIn("corn_1", farm.options("water", "", now, False))
+        self.assertTrue(next(x for x in farm.public(now, False)["plots"] if x["id"] == "corn_1")["dry"])
+
+    def test_machine_not_shared(self):
+        self.enterContext(patch.object(self.life, "is_day", return_value=True))
+        farm, now = self.life.farm, time.time()
+        for p in farm.plots.values():
+            p.update(stage="stubble", grown=0.0)
+        ag = self.life.residents["ag"]
+        ag.room, ag.spot = next(s["room"] for s in self.life.spots if s["spot"] == "tractor"), "tractor"
+        self.assertNotIn("plow", self.farm_day())
+
+    def test_animals_and_cooking_from_the_farm(self):
+        self.enterContext(patch.object(self.life, "is_day", return_value=True))
+        farm, now = self.life.farm, time.time()
+        farm.pens["chickens"].update(fed_at=now - 20 * farm.hour, got_at=now - 20 * farm.hour)
+        self.assertIn("collect_eggs", self.farm_day())
+        eggs = farm.store.get("鸡蛋", 0)
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            self.life.start_activity(self.ac, "collect_eggs")
+        self.assertGreater(farm.store["鸡蛋"], eggs)
+        farm.store = {"土豆": 1}
+        with patch("home.life.threading.Timer", ImmediateTimer), patch("home.life.random.random", return_value=0.0):
+            self.life.start_activity(self.ac, "cook")
+        self.assertIn("自家", self.ac.thing)
+        self.assertEqual(farm.store["土豆"], 0)
+
     def test_kitchen_things_carry_over(self):
         ag = self.life.residents["ag"]
+        self.life.life["farm_cook_chance"] = 0.0
         with patch("home.life.threading.Timer", ImmediateTimer):
             self.life.start_activity(self.ac, "cook")
             dish = self.life.kitchen["dish"]

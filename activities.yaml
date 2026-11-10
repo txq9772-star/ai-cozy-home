@@ -520,3 +520,155 @@ frisbee:
   anim: wave
   prop: disc
   gives: {social: 20, fun: 22, energy: -8}
+
+# ---------- 农场（rooms/farm.yaml）
+# farm 是农活种类：plow 翻地 / sow 播种 / water 浇地 / harvest 收割 / sell 拉去卖 / feed 喂牲口 / milk 挤奶 / eggs 捡蛋 /
+# shear 剪羊毛 / check 下地看看 / count 清点粮仓。地里、圈里没活可干时这件事不会被挑中；{thing} 是这次具体干的哪块地、收了多少
+plow:
+  label: 开拖拉机翻地
+  spots: [plow]
+  farm: plow
+  doing: "开拖拉机翻{thing}"
+  text: "开着拖拉机在农场翻地"
+  text_thing: "开着拖拉机把{thing}翻了一遍"
+  think: false
+  weight: 0.9
+  daytime: true
+  emote: "🚜"
+  gives: {fun: 10, energy: -10}
+
+sow:
+  label: 开播种机下种
+  spots: [sow]
+  farm: sow
+  doing: "开播种机在{thing}"
+  text: "开着播种机在农场下种"
+  text_thing: "开着播种机在{thing}"
+  think: false
+  weight: 0.9
+  daytime: true
+  emote: "🌱"
+  gives: {fun: 8, energy: -8}
+
+water_field:
+  label: 开洒水车浇地
+  spots: [water_field]
+  farm: water
+  doing: "开洒水车给{thing}"
+  text: "开着洒水车在农场浇地"
+  text_thing: "开着洒水车给{thing}"
+  think: false
+  weight: 0.8
+  daytime: true
+  emote: "💧"
+  gives: {fun: 6, energy: -6}
+
+harvest:
+  label: 开收割机收庄稼
+  spots: [harvest]
+  farm: harvest
+  doing: "开收割机收{thing}"
+  text: "开着收割机在农场收庄稼"
+  text_thing: "开着收割机收了{thing}"
+  think: true
+  weight: 1.2
+  daytime: true
+  emote: "🌾"
+  gives: {fun: 18, energy: -12}
+
+sell_crops:
+  label: 开货车拉粮去卖
+  spots: [sell]
+  farm: sell
+  doing: "开货车拉{thing}去镇上卖"
+  text: "开着货车拉了一车东西去镇上卖"
+  text_thing: "开着货车拉了{thing}去镇上卖"
+  think: true
+  weight: 0.9
+  daytime: true
+  emote: "🚚"
+  gives: {fun: 12, social: 6, energy: -8}
+
+feed_animals:
+  label: 喂牲口
+  spots: [feed]
+  farm: feed
+  doing: "在农场{thing}"
+  text: "去农场喂了牲口"
+  text_thing: "去农场{thing}"
+  think: false
+  weight: 0.9
+  daytime: true
+  emote: "🌽"
+  anim: feed
+  gives: {fun: 10, energy: -4}
+
+milk_cows:
+  label: 挤牛奶
+  spots: [milk]
+  farm: milk
+  doing: "在牛棚挤奶"
+  text: "在牛棚挤了会儿牛奶"
+  text_thing: "在牛棚挤了{thing}"
+  think: false
+  weight: 0.8
+  daytime: true
+  emote: "🥛"
+  anim: pet
+  gives: {fun: 10, energy: -4}
+
+collect_eggs:
+  label: 捡鸡蛋
+  spots: [eggs]
+  farm: eggs
+  doing: "在鸡舍捡蛋"
+  text: "去鸡舍捡了鸡蛋"
+  text_thing: "去鸡舍捡了{thing}"
+  think: false
+  weight: 0.8
+  daytime: true
+  emote: "🥚"
+  anim: tidy
+  gives: {fun: 10, energy: -3}
+
+shear_sheep:
+  label: 剪羊毛
+  spots: [shear]
+  farm: shear
+  doing: "在羊圈剪羊毛"
+  text: "在羊圈给羊剪了毛"
+  text_thing: "在羊圈给羊剪了毛，攒下{thing}"
+  think: false
+  weight: 0.8
+  daytime: true
+  emote: "🐑"
+  anim: pet
+  gives: {fun: 12, energy: -6}
+
+check_field:
+  label: 下地看看
+  spots: [field_look]
+  farm: check
+  doing: "在田边看庄稼，{thing}"
+  text: "去田边转了转"
+  text_thing: "去田边转了转，{thing}"
+  think: true
+  weight: 0.7
+  daytime: true
+  emote: "👀"
+  anim: look
+  gives: {fun: 8, energy: 2}
+
+count_barn:
+  label: 清点粮仓
+  spots: [barn]
+  farm: count
+  doing: "在粮仓清点，现在有{thing}"
+  text: "去粮仓清点了一遍"
+  text_thing: "去粮仓数了数，有{thing}"
+  think: false
+  weight: 0.4
+  daytime: true
+  emote: "📦"
+  anim: tidy
+  gives: {fun: 4, energy: -2}

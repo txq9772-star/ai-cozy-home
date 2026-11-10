@@ -4,11 +4,13 @@ name: 湖边
 icon: lake
 kind: outdoor
 size: [42, 24]
+exit_at: 19.8          # 南边接农场：湖占了中间，门开在东岸
 label: [16.5, "n+1.0"]
 furniture:
   - {type: path_stones, x: 0, z: 0, pts: [[0, -12], [0.4, -10.6], [-4, -9.4], [-9.5, -9.6], [-13.4, -9.4]]}
   - {type: path_stones, x: 0, z: 0, pts: [[0.4, -10.6], [3.6, -9.6], [5, -8.4], [5, -7.2]]}
   - {type: path_stones, x: 0, z: 0, pts: [[3.6, -9.6], [10.5, -10], [16, -9.4]]}
+  - {type: path_stones, x: 0, z: 0, pts: [[16, -9.4], [18.4, -7], [20, -2], [20, 4], [20.4, 8], [19.8, 12]]}
   - {type: lake, x: 0, z: 2.2, w: 30, d: 15}
   - {type: dock, x: 5, z: -4.6, len: 4.2, w: 1.9}
   - {type: gazebo, x: -15.2, z: -9.2}

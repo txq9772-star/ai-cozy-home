@@ -14,6 +14,40 @@ const MEM_KIND = { auto: '', owner: '你教的', together: '一起', summary: '�
 
 export function replay() { return S.replay; }
 
+// ---------------------------------------------------------------- 农场
+const CROP_ICON = { rice: '🌾', wheat: '🌾', corn: '🌽', potato: '🥔' };
+const JOB = { plow: '翻地', sow: '播种', water: '浇地', harvest: '收割', sell: '拉去卖', feed: '喂', milk: '挤奶', eggs: '捡蛋', shear: '剪毛', check: '看地', count: '清点' };
+
+export function setFarm(farm) {
+  S.farm = farm;
+  if (panelOpen('farm')) renderFarm();
+}
+
+function renderFarm() {
+  const f = S.farm, box = $('farm');
+  if (!f || !(f.plots || []).length) { box.innerHTML = '<p class="empty">还没有农场。home.yaml 里的 outdoors 加上 {template: farm} 就有了</p>'; return; }
+  const working = new Map((f.work || []).map((w) => [w.target, w]));
+  const crops = {};
+  for (const p of f.plots) (crops[p.crop] ||= { name: p.crop_name, list: [] }).list.push(p);
+  const plotRow = (p) => {
+    const w = working.get(p.id);
+    const state = w ? `${esc(w.by_name)}在${JOB[w.job] || w.job}` : p.dry ? '土干了' : esc(p.stage_name);
+    const pct = Math.round((p.progress || 0) * 100);
+    return `<li class="${p.dry ? 'dry' : ''}${p.stage === 'ripe' ? ' ripe' : ''}"><span>${esc(p.name)}</span>
+      <i class="prog"><b style="width:${p.stage === 'ripe' ? 100 : pct}%"></b></i><em>${state}</em></li>`;
+  };
+  const store = (f.store || []).map((x) => `<span class="chip">${esc(x.item)} <b>${x.count}</b> ${esc(x.unit)}</span>`).join('') || '<span class="muted">空的</span>';
+  const sold = (f.sold || []).map((x) => `${esc(x.item)} ${x.count} ${esc(x.unit)}`).join('、');
+  const pens = (f.pens || []).map((p) => `<li class="${p.hungry ? 'dry' : ''}"><span>${esc(p.name)}</span><small>${p.count} 只${esc(p.animal)}</small>
+      <em>${p.hungry ? '饿了' : `${p.fed_ago} 小时前喂过`}${p.ready ? ` · ${esc(p.product)}可以收了` : ''}</em></li>`).join('');
+  const log = (f.log || []).map((x) => `<li><span class="when">${hhmm(x.ts)}</span>${esc(x.by)} ${esc(x.text)}</li>`).join('');
+  box.innerHTML = `
+    <h4>粮仓</h4><div class="chips2">${store}</div>${sold ? `<p class="muted">卖出去的：${sold}</p>` : ''}
+    ${Object.entries(crops).map(([k, c]) => `<h4>${CROP_ICON[k] || ''} ${esc(c.name)}</h4><ul class="plots">${c.list.map(plotRow).join('')}</ul>`).join('')}
+    <h4>牲口</h4><ul class="plots pens">${pens}</ul>
+    ${log ? `<h4>最近干的活</h4><ul class="flog">${log}</ul>` : ''}`;
+}
+
 export function init({ world, people, state }) {
   S.world = world; S.people = people;
   S.replay = new Replay(world, people, async () => {
@@ -25,6 +59,7 @@ export function init({ world, people, state }) {
   setHome(state.home);
   state.residents.forEach((r) => S.residents.set(r.id, r));
   setPending(state.pending || []);
+  S.farm = state.farm;
   bindChrome();
   renderWho(); renderPeople(); renderChips(); renderSettings();
   loadFeed(); loadChat();
@@ -32,6 +67,7 @@ export function init({ world, people, state }) {
 
 export function resync(state) {
   setHome(state.home);
+  setFarm(state.farm);
   S.residents.clear();
   state.residents.forEach((r) => S.residents.set(r.id, r));
   setPending(state.pending || []);
@@ -510,6 +546,7 @@ function bindChrome() {
       if (id === 'settings') renderSettings();
       if (id === 'notes') { renderNoteTargets(); loadNotes().catch((e) => toast(e.message)); }
       if (id === 'daily') loadDaily().catch((e) => toast(e.message));
+      if (id === 'farm') renderFarm();
     }
   }));
   $('open-replay').addEventListener('click', () => {
@@ -518,6 +555,7 @@ function bindChrome() {
   $('daily-prev').addEventListener('click', () => loadDaily(dayShift(S.dailyDay, -1)).catch((e) => toast(e.message)));
   $('daily-next').addEventListener('click', () => { if (!S.dailyToday) loadDaily(dayShift(S.dailyDay, 1)).catch((e) => toast(e.message)); });
   $('daily-week').addEventListener('click', () => loadWeekly().catch((e) => toast(e.message)));
+  $('farm-go').addEventListener('click', () => { const r = [...(S.world.rooms?.values() || [])].find((x) => x.template === 'farm'); if (r) S.world.focusRoom(r); });
   $('note-add').addEventListener('submit', async (e) => {
     e.preventDefault();
     const inp = $('note-text'), text = inp.value.trim();

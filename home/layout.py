@@ -297,7 +297,8 @@ def _outdoor_rooms(outdoors: Any, templates: dict[str, dict[str, Any]], out_room
             yard["door"] = {"wall": "n", "at": round(max(rect[0] + 1, min(rect[2] - 1, at)), 3)}
             yard["parent"] = parent
             out_rooms.append(yard)
-            parent, at, z_end = yard["id"], 0.0, rect[3]
+            # 下一块场地的门开在这块的 exit_at（比如湖边：湖占了中间，从东岸绕过去）
+            parent, at, z_end = yard["id"], float(tpl.get("exit_at", 0)), rect[3]
             x_low, x_high = min(x_low, rect[0]), max(x_high, rect[2])
     return z_end, x_low, x_high
 
@@ -491,7 +492,8 @@ def spots_index(layout: dict[str, Any]) -> list[dict[str, Any]]:
         for sid, s in (r.get("spots") or {}).items():
             out.append({"room": r["id"], "room_name": r["name"], "spot": sid, "label": s.get("label", sid),
                         "tags": list(s.get("tags") or []), "owner": r.get("owner"), "pose": s.get("pose", "stand"),
-                        "ride": s.get("ride", ""), "outdoor": r.get("kind") in ("outdoor", "court")})
+                        "ride": s.get("ride", ""), "target": str(s.get("target", "")),
+                        "outdoor": r.get("kind") in ("outdoor", "court")})
     return out
 
 

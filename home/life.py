@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 
 from . import days, living, prompts
 from .drivers import Driver, Gen, make_driver
+from .farm import Farm
 from .layout import spots_index
 from .sources import Item, Sources
 from .store import Store
@@ -123,6 +124,8 @@ class Life:
         self.festival_said = str(saved.get("festival_said", ""))
         self.party_day = str(saved.get("party_day", ""))
         self.kitchen: dict[str, Any] = dict(saved.get("kitchen") or {})
+        self.farm = Farm(self.layout, self.store.load_state("__farm__"), 60 * self.minute)
+        self.farm_saved_at = time.time()
         owner = self.store.load_state("__owner__")
         self.last_visit, self.last_seen = float(owner.get("last_visit", 0)), float(owner.get("last_seen", 0))
         self.visits = int(owner.get("visits", 0))
@@ -174,7 +177,10 @@ class Life:
                         r.room, r.spot = r.bedroom, "desk"
                 self.residents[rid] = r
         if not first:
+            self.farm.set_layout(layout)
+            self._save_farm()
             self.emit("layout", self.layout)
+            self.emit("farm", self.farm_public())
             for r in self.residents.values():
                 self.emit("resident", self.public(r))
             for r in arrived:
@@ -273,7 +279,33 @@ class Life:
     def state(self) -> dict[str, Any]:
         with self.lock:
             return {"home": self.home_info(), "residents": [self.public(r) for r in self.residents.values()],
-                    "pending": self.pending_public()}
+                    "pending": self.pending_public(), "farm": self.farm_public()}
+
+    # ------------------------------------------------------------ 农场
+    def farm_public(self) -> dict[str, Any]:
+        return self.farm.public(time.time(), self.weather() == "rain", self.names())
+
+    def _save_farm(self) -> None:
+        self.farm_saved_at = time.time()
+        self.store.save_state("__farm__", self.farm.saved())
+
+    def _farm_changed(self) -> None:
+        self._save_farm()
+        self.emit("farm", self.farm_public())
+
+    def _farm_tick(self, now: float) -> None:
+        if self.paused:
+            self.farm.checked = now          # 暂停时地里也不长
+            return
+        if self.farm.tick(now, self.weather() == "rain"):
+            self._farm_changed()
+        elif now - self.farm_saved_at > 60:
+            self._save_farm()
+
+    def _farm_release(self, r: Resident) -> None:
+        """换别的事了：开到一半的农机活算干完。"""
+        if self.farm.release(r.id, time.time()):
+            self._farm_changed()
 
     def pending_public(self) -> list[dict[str, Any]]:
         return [{"resident": p["resident"], "text": p["text"], "ts": p["ts"]} for p in self.pending]
@@ -676,6 +708,7 @@ class Life:
         self._small_event(now_ts)
         self._deliver_notes()
         self._needs_tick(now_ts)
+        self._farm_tick(now_ts)
         self._fidget(now_ts)
         self._party_check(now_ts)
         self._backup_check()
@@ -779,6 +812,12 @@ class Life:
                 continue
             tags = set(act.get("spots") or [])
             cands = here([s for s in self.spots if tags & set(s["tags"]) and (not s["owner"] or s["owner"] == r.id)])
+            if act.get("farm"):            # 农活：有地可干、农机没被别人开走才算
+                with self.lock:
+                    taken = {(o.room, o.spot) for o in self.residents.values() if o is not r}
+                rain = self.weather() == "rain"
+                cands = [s for s in cands if (s["room"], s["spot"]) not in taken
+                         and self.farm.options(str(act["farm"]), s.get("target", ""), time.time(), rain)]
             if cands and (not act.get("together") or self._pair(r, cands)):
                 out.append((aid, act, cands))
         return out
@@ -795,6 +834,7 @@ class Life:
         living.give(r.needs, act.get("gives"))
 
     def _clear_act(self, r: Resident) -> None:
+        self._farm_release(r)
         r.anim, r.emote, r.prop, r.roam = "", "", "", False
         r.thing = r.doing = r.thing_of = ""
 
@@ -805,9 +845,26 @@ class Life:
         """给模型看的「在做什么」：有具体东西就说具体的，比如「在做番茄炒蛋」。"""
         return r.doing if r.doing and r.thing_of == r.activity else r.activity
 
-    def _pick_thing(self, r: Resident, aid: str, act: dict[str, Any]) -> str:
-        """这次具体弄什么。厨房的事连着：做的菜会剩下，别人找吃的会吃到，用过的锅有人洗。"""
+    def _pick_thing(self, r: Resident, aid: str, act: dict[str, Any], spot: dict[str, Any] | None = None) -> str:
+        """这次具体弄什么。厨房的事连着：做的菜会剩下，别人找吃的会吃到，用过的锅有人洗。
+        农活从农场里挑一块地、一个圈来干；做饭有自家地里的东西就用上。"""
         k, role, now = self.kitchen, act.get("kitchen"), time.time()
+        if act.get("farm"):
+            job = str(act["farm"])
+            thing = self.farm.start(job, (spot or {}).get("target", ""), r.id, (spot or {}).get("ride", ""), now,
+                                    self.weather() == "rain")
+            self.farm.note_start(r.id, job, thing, now)
+            self._farm_changed()
+            return thing
+        if role == "cook" and random.random() < float(self.life.get("farm_cook_chance", 0.6)):
+            got = self.farm.cook_from_home()
+            if got:
+                dish, used = got
+                thing = f"{dish}（{used}是自家的）"
+                self.kitchen = {"dish": dish, "by": r.id, "at": now, "left": random.randint(1, 3), "dirty": True}
+                self._save_home()
+                self._farm_changed()
+                return thing
         fresh = bool(k.get("dish")) and now - float(k.get("at", 0)) < LEFTOVER_HOURS * 3600
         if role == "eat" and fresh and int(k.get("left", 0)) > 0 and random.random() < 0.7:
             k["left"] = int(k["left"]) - 1
@@ -854,7 +911,8 @@ class Life:
         if item:
             self.store.mark_item(r.id, item.key)
         think = bool(act.get("think")) and self._think_now(r)
-        thing = self._pick_thing(r, aid, act)
+        self._farm_release(r)
+        thing = self._pick_thing(r, aid, act, spot)
         doing = self._doing_text(act, thing)
         r.room, r.spot, r.since = spot["room"], spot["spot"], time.time()
         r.activity = f"在{act.get('label', aid)}"
@@ -1010,6 +1068,7 @@ class Life:
         until = time.time() + self._activity_gap() * 1.2
         for who, spot in zip(joined, spots):
             who.room, who.spot, who.since, who.next_at = spot["room"], spot["spot"], time.time(), until
+            self._farm_release(who)
             who.activity = f"在{g['label']}"
             who.anim, who.emote, who.prop, who.roam = g["anim"], g["emote"], g["prop"], False
             who.thing, who.thing_of = thing, who.activity if thing else ""
@@ -1099,6 +1158,8 @@ class Life:
         label = act.get("label", aid)
         think = bool(act.get("think")) and self._think_now(r) and self.can_call(partner)
         until = time.time() + self._activity_gap()
+        self._farm_release(r)
+        self._farm_release(partner)
         for who, spot in ((r, spot_a), (partner, spot_b)):
             who.room, who.spot, who.since = spot["room"], spot["spot"], time.time()
             who.status, who.next_at = "busy" if think else "idle", until

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { buildFurniture, box, mat } from './furniture.js';
+import './farm3d.js';
 
 const ROOM_ICON = { bed: '🛏', books: '📚', pot: '🍳', sofa: '🛋', game: '🎮', box: '📦', park: '🎠', lake: '🦆', tree: '🌳' };
 export const GROUND_Y = -0.5;      // 屋外草地的高度（屋里地板是 0）
@@ -45,7 +46,7 @@ export class World {
     this.camera = new THREE.PerspectiveCamera(30, 1, 2, 700);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     Object.assign(this.controls, { enableDamping: true, dampingFactor: 0.08, minPolarAngle: 0.3, maxPolarAngle: 1.22,
-      minDistance: 8, maxDistance: 280, screenSpacePanning: false, zoomToCursor: true, keyPanSpeed: 18 });
+      minDistance: 8, maxDistance: 460, screenSpacePanning: false, zoomToCursor: true, keyPanSpeed: 18 });
     // 左键拖是挪地图，右键拖才转视角（转也有工具栏的两个按钮）；手机上一指挪、两指缩放和转
     this.controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
     this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
@@ -257,6 +258,7 @@ export class World {
     this.sun.position.set(this.islandCenter.x + 30, 50, this.islandCenter.z + 22);
     this.sun.target.position.copy(this.islandCenter);
     if (!this.placed) { this.viewAll(true); this.placed = true; }
+    if (this.farm) this.setFarm(this.farm);
     this.buildFestival();
     this.applySky();
     this.updateCutaway();
@@ -345,6 +347,7 @@ export class World {
         if (o.userData.screen) this.screens.push(o.userData.screen);
       });
       if (f.ride && obj.userData.ride) this.rides.set(f.ride, obj.userData.ride);
+      obj.userData.setRoom?.(r);
       this.props.push({ room: r.id, type: f.type, x: f.x, z: f.z, obj, on: false });
       if (obj.userData.wallArt) this.wallArts.push(obj);
       if (obj.userData.tick) this.tickers.push(obj.userData.tick);
@@ -576,6 +579,28 @@ export class World {
     for (const [id, rl] of this.roomLights) {
       const own = this.rooms.get(id)?.owner;
       rl.light.intensity = this.night * (rl.on ? (own ? 6 : 8) : 0.5);
+    }
+  }
+
+  // ------------------------------------------------------------ 农场：地里长到哪、圈里喂没喂、哪台车在干活
+  setFarm(state) {
+    this.farm = state;
+    if (!state) return;
+    const plots = new Map((state.plots || []).map((p) => [p.id, p]));
+    const pens = new Map((state.pens || []).map((p) => [p.id, p]));
+    const rects = new Map();
+    for (const q of this.props) {
+      const sp = q.obj.userData.spec || {};
+      if (q.type === 'field') {
+        q.obj.userData.setStage?.(plots.get(sp.plot));
+        rects.set(sp.plot, [sp.x - (sp.w || 12) / 2, sp.z - (sp.d || 10) / 2, sp.x + (sp.w || 12) / 2, sp.z + (sp.d || 10) / 2]);
+      } else if (q.type === 'pen') q.obj.userData.setPen?.(pens.get(sp.pen));
+    }
+    for (const q of this.props) {
+      if (q.type !== 'machine') continue;
+      const sp = q.obj.userData.spec || {};
+      const w = (state.work || []).find((x) => x.ride === sp.ride);
+      q.obj.userData.setWork?.(w ? { job: w.job, rect: rects.get(w.target) || null, key: `${w.job}:${w.target}:${w.start}` } : null);
     }
   }
 
