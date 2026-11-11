@@ -11,7 +11,10 @@ const world = new World(document.getElementById('stage'), document.getElementByI
 const people = new People(world);
 world.onPick = (id) => ui.openCard(id);
 world.onRoomClick = (room) => world.focusRoom(room);
-world.onTouch = (room, kind) => { api('/api/touch', { method: 'POST', body: { room, kind } }).catch(() => {}); };
+world.onTouch = (room, kind, pt, obj) => {
+  if (kind === 'farm') { ui.openFarm(obj?.userData.farmRef); return; }      // 点地、点圈：打开农场面板，能直接派人去干
+  api('/api/touch', { method: 'POST', body: { room, kind } }).catch(() => {});
+};
 window.__home = { world, people };     // 调试用
 
 async function boot() {

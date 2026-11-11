@@ -524,8 +524,12 @@ frisbee:
 # ---------- 农场（rooms/farm.yaml）
 # farm 是农活种类：plow 翻地 / sow 播种 / water 浇地 / harvest 收割 / sell 拉去卖 / feed 喂牲口 / milk 挤奶 / eggs 捡蛋 /
 # shear 剪羊毛 / check 下地看看 / count 清点粮仓。地里、圈里没活可干时这件事不会被挑中；{thing} 是这次具体干的哪块地、收了多少
+# words：主人在群里这么说就算叫她去干这件事（「阿C去收玉米」「去喂鸡」），话里带了作物、地名、牛羊鸡就只干那块
+# verbs：单字的说法，话里点了地、作物或牲口才算（「把中间那块麦田收了」「帮我把鸡喂一下」）
 plow:
   label: 开拖拉机翻地
+  words: [翻地, 耕地, 犁地, 开拖拉机]
+  verbs: [翻, 耕, 犁]
   spots: [plow]
   farm: plow
   doing: "开拖拉机翻{thing}"
@@ -539,6 +543,8 @@ plow:
 
 sow:
   label: 开播种机下种
+  words: [播种, 下种, 种地, 种稻, 种麦, 种玉米, 种土豆]
+  verbs: [种]
   spots: [sow]
   farm: sow
   doing: "开播种机在{thing}"
@@ -552,6 +558,8 @@ sow:
 
 water_field:
   label: 开洒水车浇地
+  words: [浇地, 灌水, 洒水, 浇庄稼]
+  verbs: [浇, 灌]
   spots: [water_field]
   farm: water
   doing: "开洒水车给{thing}"
@@ -565,6 +573,8 @@ water_field:
 
 harvest:
   label: 开收割机收庄稼
+  words: [收割, 收获, 收庄稼, 收粮, 收稻, 收麦, 收玉米, 收土豆, 挖土豆, 割麦, 割稻]
+  verbs: [收, 割, 挖]
   spots: [harvest]
   farm: harvest
   doing: "开收割机收{thing}"
@@ -578,6 +588,7 @@ harvest:
 
 sell_crops:
   label: 开货车拉粮去卖
+  words: [卖粮, 去卖, 拉去卖, 卖掉]
   spots: [sell]
   farm: sell
   doing: "开货车拉{thing}去镇上卖"
@@ -591,6 +602,8 @@ sell_crops:
 
 feed_animals:
   label: 喂牲口
+  words: [喂牲口, 喂牛, 喂羊, 喂鸡, 喂动物]
+  verbs: [喂]
   spots: [feed]
   farm: feed
   doing: "在农场{thing}"
@@ -605,6 +618,8 @@ feed_animals:
 
 milk_cows:
   label: 挤牛奶
+  words: [挤奶, 挤牛奶]
+  verbs: [挤]
   spots: [milk]
   farm: milk
   doing: "在牛棚挤奶"
@@ -619,6 +634,8 @@ milk_cows:
 
 collect_eggs:
   label: 捡鸡蛋
+  words: [捡蛋, 捡鸡蛋, 收鸡蛋]
+  verbs: [捡, 收]
   spots: [eggs]
   farm: eggs
   doing: "在鸡舍捡蛋"
@@ -633,6 +650,8 @@ collect_eggs:
 
 shear_sheep:
   label: 剪羊毛
+  words: [剪羊毛, 剪毛]
+  verbs: [剪]
   spots: [shear]
   farm: shear
   doing: "在羊圈剪羊毛"
@@ -647,6 +666,7 @@ shear_sheep:
 
 check_field:
   label: 下地看看
+  words: [看庄稼, 看看地, 去地里看, 巡田]
   spots: [field_look]
   farm: check
   doing: "在田边看庄稼，{thing}"
@@ -661,6 +681,7 @@ check_field:
 
 count_barn:
   label: 清点粮仓
+  words: [清点, 盘点, 看看粮仓]
   spots: [barn]
   farm: count
   doing: "在粮仓清点，现在有{thing}"

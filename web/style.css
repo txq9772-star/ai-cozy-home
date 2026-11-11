@@ -265,3 +265,10 @@ body.hide-rooms .room-tag { display: none; }
 .farm .flog li { padding: 4px 0; font-size: calc(13px * var(--fs-ui, 1)); color: #3d3a45; }
 .farm .flog .when { color: var(--ink-2); font-size: calc(12px * var(--fs-ui, 1)); margin-right: 6px; }
 #farm-go + .x { margin-left: 0; }
+.farm .farm-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 2px; }
+.farm .farm-who select { font: inherit; padding: 2px 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.farm .farm-who .muted { flex-basis: 100%; }
+.farm .fbs { display: inline-flex; gap: 4px; margin-left: 8px; }
+.farm .fb { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 1px 9px; font-size: calc(12px * var(--fs-ui, 1)); color: var(--ink); }
+.farm .fb:hover { border-color: var(--accent); color: var(--accent); }
+.farm li.hl { background: #fff3dc; transition: background .3s; }

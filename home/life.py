@@ -30,6 +30,7 @@ log = logging.getLogger("home.life")
 Emit = Callable[[str, Any], None]
 MENTION_ALL = ("@所有人", "@全体成员", "@全体", "@all", "@大家")
 GO_WORDS = ("去", "来", "到", "过来", "过去", "回")        # 主人喊人去哪：句子里得有这类字才算
+ASK_WORDS = ("帮", "让", "叫", "把", "一下", "吧", "快")    # 叫人干活的说法，用来认「帮我把玉米收了」
 GO_REFUSE = "[不去]"
 GO_SKIP_LABELS = ("门口",)                                 # 太泛的位置名不拿来认地方
 DAY_HOURS = (7, 19)
@@ -785,7 +786,9 @@ class Life:
         return random.choices(partners, weights=weights)[0], a, b
 
     def _choices(self, r: Resident, forced: str | set[str] | None = None,
-                 where: tuple[str, str | None] | None = None) -> list[tuple[str, dict[str, Any], list[dict[str, Any]]]]:
+                 where: tuple[str, str | None] | None = None, owner: bool = False,
+                 pick: set[str] | None = None) -> list[tuple[str, dict[str, Any], list[dict[str, Any]]]]:
+        """owner：主人叫去的，不管白天黑夜、下不下雨。pick：农活只干这几块地 / 这几个圈。"""
         out = []
         wanted = {forced} if isinstance(forced, str) else forced
         def here(spots: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -801,9 +804,11 @@ class Life:
             src = act.get("source")
             if src and not self.sources.available(src):
                 continue
-            if (act.get("daytime") and not self.is_day()) or aid in outside or (act.get("festival") and not festival):
+            if not owner and ((act.get("daytime") and not self.is_day()) or aid in outside):
                 continue
-            if act.get("weather") and act["weather"] != self.weather():
+            if act.get("festival") and not festival:
+                continue
+            if not owner and act.get("weather") and act["weather"] != self.weather():
                 continue
             if act.get("visit"):
                 hosts = here([s for s in self.spots if "guest" in s["tags"] and s["owner"] and s["owner"] != r.id and self._at_home(s["owner"])])
@@ -817,7 +822,8 @@ class Life:
                     taken = {(o.room, o.spot) for o in self.residents.values() if o is not r}
                 rain = self.weather() == "rain"
                 cands = [s for s in cands if (s["room"], s["spot"]) not in taken
-                         and self.farm.options(str(act["farm"]), s.get("target", ""), time.time(), rain)]
+                         and [o for o in self.farm.options(str(act["farm"]), s.get("target", ""), time.time(), rain)
+                              if not pick or o in pick]]
             if cands and (not act.get("together") or self._pair(r, cands)):
                 out.append((aid, act, cands))
         return out
@@ -845,14 +851,15 @@ class Life:
         """给模型看的「在做什么」：有具体东西就说具体的，比如「在做番茄炒蛋」。"""
         return r.doing if r.doing and r.thing_of == r.activity else r.activity
 
-    def _pick_thing(self, r: Resident, aid: str, act: dict[str, Any], spot: dict[str, Any] | None = None) -> str:
+    def _pick_thing(self, r: Resident, aid: str, act: dict[str, Any], spot: dict[str, Any] | None = None,
+                    pick: set[str] | None = None) -> str:
         """这次具体弄什么。厨房的事连着：做的菜会剩下，别人找吃的会吃到，用过的锅有人洗。
         农活从农场里挑一块地、一个圈来干；做饭有自家地里的东西就用上。"""
         k, role, now = self.kitchen, act.get("kitchen"), time.time()
         if act.get("farm"):
             job = str(act["farm"])
             thing = self.farm.start(job, (spot or {}).get("target", ""), r.id, (spot or {}).get("ride", ""), now,
-                                    self.weather() == "rain")
+                                    self.weather() == "rain", pick)
             self.farm.note_start(r.id, job, thing, now)
             self._farm_changed()
             return thing
@@ -890,8 +897,9 @@ class Life:
         return str(act["doing"]).replace("{thing}", thing) if thing and act.get("doing") else ""
 
     def start_activity(self, r: Resident, forced: str | set[str] | None = None,
-                       where: tuple[str, str | None] | None = None) -> str:
-        choices = self._choices(r, forced, where)
+                       where: tuple[str, str | None] | None = None, owner: bool = False,
+                       pick: set[str] | None = None) -> str:
+        choices = self._choices(r, forced, where, owner, pick)
         if not choices:
             r.next_at = time.time() + 5 * self.minute
             return "现在没什么可做的（没有合适的位置或内容）"
@@ -912,7 +920,7 @@ class Life:
             self.store.mark_item(r.id, item.key)
         think = bool(act.get("think")) and self._think_now(r)
         self._farm_release(r)
-        thing = self._pick_thing(r, aid, act, spot)
+        thing = self._pick_thing(r, aid, act, spot, pick)
         doing = self._doing_text(act, thing)
         r.room, r.spot, r.since = spot["room"], spot["spot"], time.time()
         r.activity = f"在{act.get('label', aid)}"
@@ -1386,21 +1394,34 @@ class Life:
 
     def _go_request(self, text: str) -> dict[str, Any] | None:
         """主人在群里喊人去哪：认房间名、位置名、活动名，取说得最具体（最长）的那个。"""
-        if not any(w in text for w in GO_WORDS):
+        moving = any(w in text for w in GO_WORDS)
+        if not moving and not any(w in text for w in ASK_WORDS):      # 「帮我把玉米收了」没有「去」也算
             return None
         found: list[tuple[int, dict[str, Any]]] = []
-        for room in self.layout["rooms"]:
+        for room in (self.layout["rooms"] if moving else []):
             if room["name"] and room["name"] in text:
                 found.append((len(room["name"]), {"kind": "room", "room": room["id"], "name": room["name"]}))
-        for s in self.spots:
+        for s in (self.spots if moving else []):
             label = str(s["label"])
             if label in GO_SKIP_LABELS or len(label) < 2 or label not in text or s["owner"]:
                 continue
             found.append((len(label) + 1, {"kind": "spot", "room": s["room"], "spot": s["spot"], "name": self.place_name(s["room"], s["spot"])}))
         for aid, act in self.activities.items():
+            if act.get("together") or act.get("visit"):
+                continue
             label = str(act.get("label") or "")
-            if label and label in text and not act.get("together") and not act.get("visit"):
-                found.append((len(label) + 2, {"kind": "activity", "aid": aid, "name": label}))
+            # 活动名和 words 里的说法都算：「去收玉米」「去喂鸡」「去翻地」
+            hits = [str(w) for w in [label, *(act.get("words") or [])] if w and str(w) in text]
+            pick = self.farm.hint(text) if act.get("farm") else None
+            fits = bool(pick and pick & self.farm.fits(str(act.get("farm", ""))))
+            # 单字的说法（收、喂、浇……）只在话里点了地、作物或牲口时才算：「把中间那块麦田收了」
+            if not hits and fits and any(str(v) in text for v in act.get("verbs") or []):
+                hits = [""]
+            if hits:
+                go = {"kind": "activity", "aid": aid, "name": label}
+                if act.get("farm"):
+                    go["pick"] = pick
+                found.append((max(len(w) for w in hits) + 2 + (1 if fits else 0), go))
         if any(w in text for w in ("卧室", "房间", "回家", "回屋")):
             found.append((1, {"kind": "bedroom", "name": "自己房间"}))      # 「回房间」：各回各的，去哪一间要等知道是谁
         if not found:
@@ -1411,10 +1432,18 @@ class Life:
     def go_to(self, r: Resident, go: dict[str, Any]) -> str:
         """真的走过去：能在那儿做的事就挑一件做，没有就站着。"""
         if go["kind"] == "activity":
-            return self.start_activity(r, go["aid"])
+            if self._choices(r, go["aid"], None, True, go.get("pick")):
+                return self.start_activity(r, go["aid"], None, True, go.get("pick"))
+            act = self.activities.get(go["aid"]) or {}
+            if act.get("farm") and self._choices(r, "check_field", None, True):
+                return self.start_activity(r, "check_field", None, True)      # 农活干不了：先去田边看看
+            farm = next((x for x in self.layout["rooms"] if x.get("template") == "farm"), None)
+            if not act.get("farm") or not farm:
+                return f"{r.name} 现在没法{go['name']}"
+            go = {"kind": "room", "room": farm["id"], "name": farm["name"]}
         where = (r.bedroom, None) if go["kind"] == "bedroom" else (go["room"], go.get("spot"))
-        if self._choices(r, None, where):
-            return self.start_activity(r, None, where)
+        if self._choices(r, None, where, True):
+            return self.start_activity(r, None, where, True)
         with self.lock:
             taken = {(o.room, o.spot) for o in self.residents.values() if o is not r}
         cands = [s for s in self.spots if s["room"] == where[0] and (where[1] is None or s["spot"] == where[1])
@@ -1429,6 +1458,42 @@ class Life:
         self._clear_act(r)
         self.changed(r)
         return f"{r.name} 去{go['name']}了"
+
+    def _go_reason(self, r: Resident, go: dict[str, Any]) -> str:
+        """叫去干的事现在干不了的原因，告诉模型，让它照实说。干得了返回空。"""
+        if go.get("kind") != "activity":
+            return ""
+        act = self.activities.get(go["aid"]) or {}
+        if self._choices(r, go["aid"], None, True, go.get("pick")):
+            return ""
+        if act.get("farm"):
+            why = self.farm.reason(str(act["farm"]), go.get("pick"), time.time(), self.weather() == "rain")
+            if why:
+                return why
+            tags = set(act.get("spots") or [])
+            with self.lock:
+                users = [o for o in self.residents.values() if o is not r
+                         and any(s["room"] == o.room and s["spot"] == o.spot and tags & set(s["tags"]) for s in self.spots)]
+            if users:
+                return f"能用的{self.place_name(users[0].room, users[0].spot)}被{users[0].name}占着"
+        return "那边现在没法弄"
+
+    def farm_order(self, rid: str, job: str, target: str = "") -> str:
+        """主人在农场面板上点名：让谁去哪块地 / 哪个圈干什么。不调用模型。"""
+        r = self._get(rid)
+        why = self._unavailable(r)
+        if why and r.status != "busy":
+            return why
+        aids = [a for a, act in self.activities.items() if act.get("farm") == job]
+        if not aids:
+            return f"没有「{job}」这种活"
+        pick = {target} if target else None
+        go = {"kind": "activity", "aid": aids[0], "pick": pick, "name": self.activities[aids[0]].get("label", job)}
+        if not self._choices(r, set(aids), None, True, pick):
+            return f"{r.name} 去不了：{self._go_reason(r, go)}"
+        out = self.start_activity(r, set(aids), None, True, pick)
+        self.emit("bubble", {"id": r.id, "text": random.choice(["好，这就去。", "行，我去。", "交给我。", "马上。"])})
+        return out
 
     def _chat_crowded(self) -> bool:
         """住户之间最近一分钟说得太多，就先不主动接话。@ 到的人和回主人的话不受影响。"""
@@ -1505,6 +1570,7 @@ class Life:
         try:
             asleep = r.status == "asleep"
             go = self._go_request(str(trigger["text"])) if trigger.get("sender") == "owner" and mentioned and not asleep else None
+            go_note = self._go_reason(r, go) if go else ""
             r.typing = True
             self.emit("resident", self.public(r))
             system = self._system(r)
@@ -1512,7 +1578,7 @@ class Life:
             memories = self.store.recall_memory(r.id, " ".join(c["text"] for c in chat[-3:]), 4)
             prompt = prompts.chat_prompt(self.clock(), self.place_name(r.room, r.spot), self._doing(r), chat,
                                          self.names(), self.home_info()["owner"], self.clock, asleep, mentioned, memories,
-                                         go=go["name"] if go else "")
+                                         go=go["name"] if go else "", go_note=go_note)
             gen = self._call(r, system, prompt, "line")
         finally:
             r.typing = False

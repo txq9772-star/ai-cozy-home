@@ -17,6 +17,22 @@ export function replay() { return S.replay; }
 // ---------------------------------------------------------------- 农场
 const CROP_ICON = { rice: '🌾', wheat: '🌾', corn: '🌽', potato: '🥔' };
 const JOB = { plow: '翻地', sow: '播种', water: '浇地', harvest: '收割', sell: '拉去卖', feed: '喂', milk: '挤奶', eggs: '捡蛋', shear: '剪毛', check: '看地', count: '清点' };
+const JOB_BTN = { ...JOB, water: '浇水', feed: '喂食' };
+
+// 点了地里某块地 / 某个圈：打开农场面板，滚到那一行
+export function openFarm(ref) {
+  const b = document.querySelector('.rail [data-panel=farm]');
+  if (!panelOpen('farm')) b.click(); else renderFarm();
+  if (!ref) return;
+  const row = $('farm').querySelector(`[data-id="${CSS.escape(ref)}"]`);
+  if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.classList.add('hl'); setTimeout(() => row.classList.remove('hl'), 2200); }
+}
+
+async function farmOrder(job, target) {
+  const who = $('farm-who')?.value;
+  if (!who) { toast('先选一个人'); return; }
+  try { toast((await api('/api/farm/order', { method: 'POST', body: { resident: who, job, target } })).message, 4000); } catch (e) { toast(e.message); }
+}
 
 export function setFarm(farm) {
   S.farm = farm;
@@ -33,19 +49,30 @@ function renderFarm() {
     const w = working.get(p.id);
     const state = w ? `${esc(w.by_name)}在${JOB[w.job] || w.job}` : p.dry ? '土干了' : esc(p.stage_name);
     const pct = Math.round((p.progress || 0) * 100);
-    return `<li class="${p.dry ? 'dry' : ''}${p.stage === 'ripe' ? ' ripe' : ''}"><span>${esc(p.name)}</span>
-      <i class="prog"><b style="width:${p.stage === 'ripe' ? 100 : pct}%"></b></i><em>${state}</em></li>`;
+    const btns = w ? '' : (p.can || []).map((j) => `<button class="fb" data-job="${j}" data-target="${esc(p.id)}">${JOB_BTN[j]}</button>`).join('');
+    return `<li data-id="${esc(p.id)}" class="${p.dry ? 'dry' : ''}${p.stage === 'ripe' ? ' ripe' : ''}"><span>${esc(p.name)}</span>
+      <i class="prog"><b style="width:${p.stage === 'ripe' ? 100 : pct}%"></b></i><em>${state}${btns ? `<span class="fbs">${btns}</span>` : ''}</em></li>`;
   };
   const store = (f.store || []).map((x) => `<span class="chip">${esc(x.item)} <b>${x.count}</b> ${esc(x.unit)}</span>`).join('') || '<span class="muted">空的</span>';
   const sold = (f.sold || []).map((x) => `${esc(x.item)} ${x.count} ${esc(x.unit)}`).join('、');
-  const pens = (f.pens || []).map((p) => `<li class="${p.hungry ? 'dry' : ''}"><span>${esc(p.name)}</span><small>${p.count} 只${esc(p.animal)}</small>
-      <em>${p.hungry ? '饿了' : `${p.fed_ago} 小时前喂过`}${p.ready ? ` · ${esc(p.product)}可以收了` : ''}</em></li>`).join('');
+  const pens = (f.pens || []).map((p) => {
+    const w = working.get(p.id);
+    const btns = w ? '' : (p.can || []).map((j) => `<button class="fb" data-job="${j}" data-target="${esc(p.id)}">${JOB_BTN[j]}</button>`).join('');
+    return `<li data-id="${esc(p.id)}" class="${p.hungry ? 'dry' : ''}"><span>${esc(p.name)}</span><small>${p.count} 只${esc(p.animal)}</small>
+      <em>${w ? `${esc(w.by_name)}在${JOB[w.job] || w.job}` : p.hungry ? '饿了' : `${p.fed_ago} 小时前喂过`}${p.ready ? ` · ${esc(p.product)}可以收了` : ''}${btns ? `<span class="fbs">${btns}</span>` : ''}</em></li>`;
+  }).join('');
+  const who = [...S.residents.values()].filter((r) => r.status !== 'offline');
+  const keep = S.farmWho && who.some((r) => r.id === S.farmWho) ? S.farmWho : (who.find((r) => r.status === 'idle') || who[0])?.id;
+  const pickWho = `<div class="farm-who">派谁去干：<select id="farm-who">${who.map((r) => `<option value="${esc(r.id)}"${r.id === keep ? ' selected' : ''}>${esc(r.name)}${r.status === 'asleep' ? '（睡着）' : ''}</option>`).join('')}</select>
+    <span class="muted">点下面的按钮就去，也可以在群里说「阿C去收玉米」</span></div>`;
   const log = (f.log || []).map((x) => `<li><span class="when">${hhmm(x.ts)}</span>${esc(x.by)} ${esc(x.text)}</li>`).join('');
-  box.innerHTML = `
-    <h4>粮仓</h4><div class="chips2">${store}</div>${sold ? `<p class="muted">卖出去的：${sold}</p>` : ''}
+  box.innerHTML = `${pickWho}
+    <h4>粮仓</h4><div class="chips2">${store}${f.can_sell ? '<button class="fb" data-job="sell" data-target="">开货车拉去卖</button>' : ''}</div>${sold ? `<p class="muted">卖出去的：${sold}</p>` : ''}
     ${Object.entries(crops).map(([k, c]) => `<h4>${CROP_ICON[k] || ''} ${esc(c.name)}</h4><ul class="plots">${c.list.map(plotRow).join('')}</ul>`).join('')}
     <h4>牲口</h4><ul class="plots pens">${pens}</ul>
     ${log ? `<h4>最近干的活</h4><ul class="flog">${log}</ul>` : ''}`;
+  $('farm-who').addEventListener('change', (e) => { S.farmWho = e.target.value; });
+  box.querySelectorAll('.fb').forEach((b) => b.addEventListener('click', () => farmOrder(b.dataset.job, b.dataset.target)));
 }
 
 export function init({ world, people, state }) {

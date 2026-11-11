@@ -131,6 +131,7 @@ function field(s) {
   };
   g.userData.setStage(null);
   g.userData.plot = s.plot;
+  g.userData.touchKind = 'farm'; g.userData.farmRef = s.plot; g.userData.touch = () => {};
   return g;
 }
 
@@ -209,6 +210,7 @@ function pen(s) {
     a.g.position.set(a.x, 0, a.z); g.add(a.g); herd.push(a);
   }
   let crowdUntil = 0, lastFed = 0, hungry = false;
+  g.userData.touchKind = 'farm'; g.userData.farmRef = s.pen; g.userData.touch = () => {};
   g.userData.setPen = (st) => {
     if (!st) return;
     hungry = !!st.hungry;

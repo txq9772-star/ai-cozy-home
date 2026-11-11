@@ -64,10 +64,13 @@ def note_prompt(now, owner: str, text: str, memories: list[str]) -> str:
 
 
 def chat_prompt(now, place: str, doing: str, chat: list[dict[str, Any]], names: dict[str, str], owner: str, clock,
-                asleep: bool, mentioned: bool, memories: list[str], go: str = "") -> str:
+                asleep: bool, mentioned: bool, memories: list[str], go: str = "", go_note: str = "") -> str:
     where = f"你在{place}{doing}" if not asleep else "你本来在睡觉，被群里的 @ 吵醒了，还迷迷糊糊的"
     parts = [f"现在是小窝时间 {now.strftime('%H:%M')}。{where}。"]
-    if go:
+    if go and go_note:
+        parts.append(f"{owner}叫你去{go}，可是现在干不了：{go_note}。照实跟{owner}说，别说已经在干了。"
+                     f"你回完会先过去看看；不想过去就在最后加上 [不去]。")
+    elif go:
         parts.append(f"{owner}叫你去{go}。你回完这句就会真的走过去；要是不想去或者走不开，话里说清楚，并在最后加上 [不去]。")
     if memories:
         parts.append("你记得的事：\n" + "\n".join(f"- {x}" for x in memories))

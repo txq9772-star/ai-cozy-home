@@ -667,7 +667,7 @@ export class World {
       if (!of) return;
       of.obj.userData.touch?.(got.point);
       if (of.obj.userData.touchKind === 'lamp') this.applySky();
-      this.onTouch(of.room, of.obj.userData.touchKind, got.point);
+      this.onTouch(of.room, of.obj.userData.touchKind, got.point, of.obj);
     });
   }
 }

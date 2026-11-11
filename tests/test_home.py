@@ -853,6 +853,75 @@ class LivingTests(unittest.TestCase):
         self.assertIn("自家", self.ac.thing)
         self.assertEqual(farm.store["土豆"], 0)
 
+    def night(self):
+        self.enterContext(patch.object(self.life, "is_day", return_value=False))
+
+    def test_calling_for_harvest_is_understood(self):
+        go = self.life._go_request("阿C去收玉米")
+        self.assertEqual(go["aid"], "harvest")
+        self.assertEqual(go["pick"], {"corn_1", "corn_2", "corn_3", "corn_4"})
+        self.assertEqual(self.life._go_request("阿G帮忙喂鸡")["pick"], {"chickens"})
+        self.assertEqual(self.life._go_request("把中间那块麦田收了吧")["pick"], {"wheat_3"})
+        self.assertIsNone(self.life._go_request("玉米熟了没"))
+
+    def test_call_for_harvest_at_night_still_goes(self):
+        self.night()
+        farm = self.life.farm
+        for p in farm.plots.values():
+            p.update(stage="growing", grown=1.0)
+        farm.plots["corn_2"].update(stage="ripe", grown=60.0)
+        r = self.ac
+        msg = self.store.add_chat("owner", "阿C去收玉米")
+        with patch("home.drivers.Mock.generate", return_value=drivers.Gen(True, text="好，我去开收割机")), \
+                patch("home.life.threading.Timer", ImmediateTimer):
+            self.life._reply(r, msg, True)
+        self.assertEqual(r.spot, "combine")
+        self.assertEqual(farm.work[0]["target"], "corn_2")
+
+    def test_call_with_nothing_to_harvest_tells_the_model(self):
+        self.night()
+        for p in self.life.farm.plots.values():
+            p.update(stage="growing", grown=1.0)
+        go = self.life._go_request("阿C去收割")
+        why = self.life._go_reason(self.ac, go)
+        self.assertIn("还没熟", why)
+        msg = self.store.add_chat("owner", "阿C去收割")
+        seen = []
+        def gen(system, prompt, mode="line"):
+            seen.append(prompt)
+            return drivers.Gen(True, text="还没熟呢，我先去地里看看")
+        with patch("home.drivers.Mock.generate", side_effect=gen), patch("home.life.threading.Timer", ImmediateTimer):
+            self.life._reply(self.ac, msg, True)
+        self.assertIn("干不了", seen[0])
+        self.assertEqual(self.ac.activity, "在下地看看")
+        self.assertEqual(self.life.farm.work, [])
+
+    def test_farm_order_from_the_panel(self):
+        self.night()
+        farm = self.life.farm
+        farm.plots["potato_3"].update(stage="ripe", grown=40.0)
+        farm.pens["sheep"].update(fed_at=0)
+        with patch("home.life.threading.Timer", ImmediateTimer):
+            out = self.life.farm_order("ag", "harvest", "potato_3")
+            self.assertIn("阿G", out)
+            self.assertEqual(self.life.residents["ag"].spot, "digger")
+            self.assertEqual(farm.work[0]["target"], "potato_3")
+            self.assertIn("去不了", self.life.farm_order("ayu", "harvest", "potato_3"))
+            self.life.farm_order("ayu", "feed", "sheep")
+        self.assertIn("羊", self.life.residents["ayu"].thing)
+        pub = farm.public(time.time(), False)
+        self.assertNotIn("feed", next(p for p in pub["pens"] if p["id"] == "sheep")["can"])
+
+    def test_one_watering_trip_covers_the_whole_crop(self):
+        farm, now = self.life.farm, time.time()
+        for p in farm.plots.values():
+            p.update(stage="growing", grown=1.0, watered_at=now - 40 * farm.hour)
+        thing = farm.start("water", "", "ac", "sprayer1", now, False, {"corn_1"})
+        self.assertIn("4 块玉米地", thing)
+        farm.release("ac", now)
+        self.assertTrue(all(farm.moist(farm.plots[k], now, False) for k in ("corn_1", "corn_2", "corn_3", "corn_4")))
+        self.assertFalse(farm.moist(farm.plots["rice_1"], now, False))
+
     def test_kitchen_things_carry_over(self):
         ag = self.life.residents["ag"]
         self.life.life["farm_cook_chance"] = 0.0
@@ -986,6 +1055,33 @@ class LivingTests(unittest.TestCase):
         self.life.apply(cfg, layout, ACTS)
         self.assertIn("glm", self.life.residents)
         self.assertEqual(self.store.list_feed(1)[0]["kind"], "movein")
+
+
+class FarmConfigurationTests(unittest.TestCase):
+    def outdoor_templates(self, **settings):
+        from home.server import make_layout
+        cfg = {"residents": CFG["residents"], **settings}
+        return [r["template"] for r in make_layout(cfg)["rooms"] if r["kind"] == "outdoor"]
+
+    def test_default_enables_farm_once(self):
+        self.assertEqual(self.outdoor_templates().count("farm"), 1)
+
+    def test_farm_false_disables_default_farm_only(self):
+        self.assertEqual(self.outdoor_templates(farm=False), ["playground", "lake"])
+
+    def test_farm_false_overrides_explicit_farm_entry(self):
+        outdoors = [{"template": t} for t in ("playground", "lake", "farm")]
+        self.assertEqual(self.outdoor_templates(outdoors=outdoors, farm=False), ["playground", "lake"])
+
+    def test_custom_outdoors_auto_appends_farm_without_duplicates(self):
+        for templates in (("playground", "lake"), ("playground", "lake", "farm")):
+            with self.subTest(templates=templates):
+                self.assertEqual(self.outdoor_templates(outdoors=[{"template": t} for t in templates]).count("farm"), 1)
+
+    def test_empty_outdoors_stays_empty(self):
+        for enabled in (True, False):
+            with self.subTest(farm=enabled):
+                self.assertEqual(self.outdoor_templates(outdoors=[], farm=enabled), [])
 
 
 if __name__ == "__main__":
