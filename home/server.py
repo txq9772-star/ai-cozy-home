@@ -106,6 +106,8 @@ def load_activities() -> dict[str, dict[str, Any]]:
 def make_layout(cfg: dict[str, Any]) -> dict[str, Any]:
     templates = load_templates(ROOT / "rooms")
     outdoors = list(cfg.get("outdoors", DEFAULT_OUTDOORS) or [])
+    if not cfg.get("farm", True):
+        outdoors = [o for o in outdoors if o.get("template") != "farm"]
     # 农场默认接在最后一块场地南边；配置里写了 outdoors 但没写 farm 也会加上，不要就写 farm: false
     if outdoors and cfg.get("farm", True) and not any(o.get("template") == "farm" for o in outdoors):
         outdoors.append({"template": "farm"})
@@ -309,6 +311,16 @@ def register_api(m: Module, life: Life, store: Store, hub: Hub, state: dict[str,
     async def api_party(request: Request):
         guard(request)
         return {"ok": True, "message": life.party()}
+
+    @r.post("/api/farm/order")
+    async def api_farm_order(request: Request):
+        guard(request)
+        body = await request.json()
+        try:
+            msg = life.farm_order(str(body.get("resident", "")), str(body.get("job", "")), str(body.get("target", "")))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        return {"ok": True, "message": msg}
 
     @r.post("/api/touch")
     async def api_touch(request: Request):
